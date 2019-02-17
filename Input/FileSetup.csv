@@ -1,0 +1,11 @@
+Parameter,Value
+ Clock Filename ,Clock.csv
+ Weather Data Filename ,Weather.csv
+ Crop Parameters Filename ,CropMix.csv
+ Soil Parameters Filename ,Soil.csv
+ Field Management (off-season) Filename ,FieldManagementOffSeason.csv
+ Initial Water Content Filename ,InitialWaterContent.csv
+ Groundwater Table Filename ,WaterTable.csv
+ C02 Concentration Time-Series Filename ,MaunaLoaCO2.csv
+ Output Filename ,Sample
+ Write daily outputs (Y/N) ,Y

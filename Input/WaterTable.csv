@@ -1,0 +1,7 @@
+    Parameter,Value
+ Water table present (Y/N) ,N
+ Water table method (Constant/Variable depth) ,Constant
+,
+Date (dd/mm/yyyy),Depth (m)
+01/05/2015,2
+01/10/2015,2.5

@@ -1,0 +1,10 @@
+Parameter,Value
+ Soil surface covered by mulches (Y/N) ,N
+ Surface bunds present (Y/N) ,N
+ Field management affects curve number (Y/N),N
+ Field management practices fully inhibit surface runoff (Y/N),N
+ Area of soil surface covered by mulches (%) ,0
+ Soil evaporation adjustment factor due to effect of mulches ,0.5
+ Bund height (m) ,0
+ Initial water height in surface bunds (mm) ,0
+ Percentage change in curve number (+/- %),0

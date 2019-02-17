@@ -1,0 +1,7 @@
+Parameter,Value,,
+ Number of crop options ,1,,
+ Specified planting calendar  (Y/N),N,,
+ Crop rotation filename ,CropRotation.csv,,
+,,,
+Crop Type,Crop Filename,Irrigation Filename,Field Management Filename
+Maize,Crop.csv,IrrigationManagement.csv,FieldManagement.csv

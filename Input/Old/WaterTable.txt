@@ -1,0 +1,7 @@
+%% ----------------- Groundwater table for AquaCropOS ------------------ %%
+N           : Water table considered (Y or N)
+Constant    : Water table specification ('Constant' or 'Interpolated')
+%% -------------------- Water table observations (m) ------------------- %%
+%% --- Date (dd/mm/yyyy) --- Depth (m) --- %%
+01/06/1979      2
+05/07/1979      1

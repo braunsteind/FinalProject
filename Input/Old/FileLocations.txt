@@ -1,0 +1,4 @@
+%% ------------------- Enter Location of Input files ------------------- %%
+/Users/timfoster/Dropbox (The University of Manchester)/TimFoster_Archive/Projects/Active/AquaCropOS/Code/DevelopmentCode/CollaboratorVersions/AquaCropOS_v60a_Netafim_Sep2018/AquaCropOS_v60a/Input
+%% ------------------ Enter Location of Output files ------------------- %%
+/Users/timfoster/Dropbox (The University of Manchester)/TimFoster_Archive/Projects/Active/AquaCropOS/Code/DevelopmentCode/CollaboratorVersions/AquaCropOS_v60a_Netafim_Sep2018/AquaCropOS_v60a/Output

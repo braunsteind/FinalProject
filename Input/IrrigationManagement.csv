@@ -1,0 +1,12 @@
+ Parameter,Value
+ Irrigation time-series filename ,IrrigationSchedule.csv
+ Irrigation method (0 = Rainfed; 1 = Soil moisture based; 2 = Fixed interval; 3 = Specified time series; 4 = Net calculation) ,1
+ Irrigation interval in days (only used if IrrMethod = 2) ,3
+ Soil moisture target in FAO56 growth stage one (% of TAW below which irrigation is triggered) ,70
+ Soil moisture target in FAO56 growth stage two (% of TAW below which irrigation is triggered) ,70
+ Soil moisture target in FAO56 growth stage three (% of TAW below which irrigation is triggered) ,70
+ Soil moisture target in FAO56 growth stage four (% of TAW below which irrigation is triggered) ,70
+ Maximum irrigation depth (mm/day) ,15
+ Irrigation application efficiency (%) ,90
+ Net irrigation threshold moisture level (% of TAW that will be maintained) ,80
+ Percentage of soil surface wetted by irrigation (%),100

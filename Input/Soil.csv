@@ -1,0 +1,12 @@
+ Parameter ,Value
+ Soil profile filename ,SoilProfile.csv
+ Soil textural properties filename ,SoilTexture.csv
+ Soil hydraulic properties filename ,SoilHydrology.csv
+ Calculate soil hydraulic properties (0 = No; 1 = Yes) ,0
+ Total thickness of soil profile (m) ,2.3
+ Total number of compartments ,12
+ Total number of layers ,1
+ Adjust default value for readily evaporable water (0 = No; 1 = Yes) ,0
+ Readily evaporable water (mm) (only used if adjusting) ,8
+ Curve number ,61
+Depth of restrictive soil layer (set to negative value if not present),-999
