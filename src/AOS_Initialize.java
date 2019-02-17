@@ -26,6 +26,7 @@ public class AOS_Initialize {
             return fileLocation;
         }
 
+        //Load data
         List<String> dataArray = new LinkedList<>();
         try {
             BufferedReader br = new BufferedReader(new FileReader(new File(fileName)));
@@ -93,6 +94,57 @@ public class AOS_Initialize {
             System.out.println(e.getMessage());
             return clockStruct;
         }
+
+        //Load data
+        List<String> dataArray = new LinkedList<>();
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(new File(fileName)));
+            String st;
+            while ((st = br.readLine()) != null) {
+                dataArray.add(st);
+            }
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+
+        //Create and assign variables
+        clockStruct.SimulationStartTime = dataArray.get(1).split(",")[1];
+        clockStruct.SimulationEndTime = dataArray.get(2).split(",")[1];
+        clockStruct.OffSeason = dataArray.get(3).split(",")[1];
+
+        //Define clock parameters
+        //Initialise time step counter
+        clockStruct.TimeStepCounter = 1;
+        //Initialise model termination condition
+        clockStruct.ModelTermination = false;
+        // Simulation start time as serial date number
+        //TODO
+//        String DateStaV = datevec(clockStruct.SimulationStartTime);
+//        clockStruct.SimulationStartDate = datenum(DateStaV);
+        //Simulation end time as serial date number
+        //TODO
+//        String DateStoV = datevec(clockStruct.SimulationEndTime);
+//        clockStruct.SimulationEndDate = datenum(DateStoV);
+        //Time step (years)
+        clockStruct.TimeStep = 1;
+        //Total numbers of time steps (days)
+        clockStruct.nSteps = clockStruct.SimulationEndDate - clockStruct.SimulationStartDate;
+
+
+        //Time spans
+        TimeSpan = zeros(1, clockStruct.nSteps + 1);
+        TimeSpan(1) = clockStruct.SimulationStartDate;
+        TimeSpan(end) = clockStruct.SimulationEndDate;
+        for (int ss = 2; ss < clockStruct.nSteps; ss++) {
+            TimeSpan(ss) = TimeSpan(ss - 1) + 1;
+        }
+        clockStruct.TimeSpan = TimeSpan;
+        //Time at start of current time step
+        clockStruct.StepStartTime = clockStruct.TimeSpan(clockStruct.TimeStepCounter);
+        //Time at end of current time step
+        clockStruct.StepEndTime = clockStruct.TimeSpan(clockStruct.TimeStepCounter + 1);
+        //Number of time-steps (per day) for soil evaporation calculation
+        clockStruct.EvapTimeSteps = 20;
 
         return clockStruct;
     }
