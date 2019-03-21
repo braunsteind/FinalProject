@@ -1,15 +1,15 @@
 public class ClockStruct {
-    public String SimulationStartTime;
-    public String SimulationEndTime;
+    public int SimulationStartTime;
+    public int SimulationEndTime;
     public String OffSeason;
     public int TimeStepCounter;
     public boolean ModelTermination;
-    public String SimulationStartDate;
-    public String SimulationEndDate;
+    public int SimulationStartDate;
+    public int SimulationEndDate;
     public int TimeStep;
     public int nSteps;
-    public int TimeSpan;
-    public String StepStartTime;
+    public int[] TimeSpan;
+    public int StepStartTime;
     public int StepEndTime;
     public int EvapTimeSteps;
 }

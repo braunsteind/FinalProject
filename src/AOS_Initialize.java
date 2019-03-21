@@ -108,8 +108,8 @@ public class AOS_Initialize {
         }
 
         //Create and assign variables
-        clockStruct.SimulationStartTime = dataArray.get(1).split(",")[1];
-        clockStruct.SimulationEndTime = dataArray.get(2).split(",")[1];
+        String tempSimulationStartTime = dataArray.get(1).split(",")[1];
+        String tempSimulationEndTime = dataArray.get(2).split(",")[1];
         clockStruct.OffSeason = dataArray.get(3).split(",")[1];
 
         //Define clock parameters
@@ -121,6 +121,7 @@ public class AOS_Initialize {
         //TODO
 //        String DateStaV = datevec(clockStruct.SimulationStartTime);
 //        clockStruct.SimulationStartDate = datenum(DateStaV);
+        clockStruct.SimulationStartDate = datenum(DateStaV);
         //Simulation end time as serial date number
         //TODO
 //        String DateStoV = datevec(clockStruct.SimulationEndTime);
@@ -132,17 +133,17 @@ public class AOS_Initialize {
 
 
         //Time spans
-        TimeSpan = zeros(1, clockStruct.nSteps + 1);
-        TimeSpan(1) = clockStruct.SimulationStartDate;
-        TimeSpan(end) = clockStruct.SimulationEndDate;
-        for (int ss = 2; ss < clockStruct.nSteps; ss++) {
-            TimeSpan(ss) = TimeSpan(ss - 1) + 1;
+        int[] TimeSpan = new int[clockStruct.nSteps];
+        TimeSpan[0] = clockStruct.SimulationStartDate;
+        TimeSpan[clockStruct.nSteps] = clockStruct.SimulationEndDate;
+        for (int ss = 1; ss < clockStruct.nSteps; ss++) {
+            TimeSpan[ss] = TimeSpan[ss - 1] + 1;
         }
         clockStruct.TimeSpan = TimeSpan;
         //Time at start of current time step
-        clockStruct.StepStartTime = clockStruct.TimeSpan(clockStruct.TimeStepCounter);
+        clockStruct.StepStartTime = clockStruct.TimeSpan[clockStruct.TimeStepCounter];
         //Time at end of current time step
-        clockStruct.StepEndTime = clockStruct.TimeSpan(clockStruct.TimeStepCounter + 1);
+        clockStruct.StepEndTime = clockStruct.TimeSpan[clockStruct.TimeStepCounter + 1];
         //Number of time-steps (per day) for soil evaporation calculation
         clockStruct.EvapTimeSteps = 20;
 
