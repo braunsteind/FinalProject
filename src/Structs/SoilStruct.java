@@ -1,3 +1,5 @@
+// member of AOS_InitialiseStruct -> ParameterStruct
+
 public class SoilStruct {
 
     public int CalcSHP;
@@ -5,6 +7,7 @@ public class SoilStruct {
     public int nComp;
     public int nLayer;
     public int AdjREW;
+    public int REW;
     public int CN;
     public int zRes;
     public double EvapZsurf;
