@@ -6,11 +6,49 @@ import java.util.List;
 public class AOS_Initialize {
 
     public static final int MILLISECONDS_IN_DAY = 86400000;
+    public static final int DATE_ADD = 719530;
 
     public AOS_Initialize() {
         FileLocation fileLocation = AOS_ReadFileLocations();
         ClockStruct clockStruct = AOS_ReadClockParameters(fileLocation);
+        double[][] WeatherStruct = AOS_ReadWeatherInputs(fileLocation, clockStruct);
         int x = 5;
+    }
+
+    /**
+     * Function to read and process input weather time-series
+     */
+    private double[][] AOS_ReadWeatherInputs(FileLocation fileLocation, ClockStruct clockStruct) {
+        double[][] weatherDB = new double[clockStruct.nSteps][5];
+
+        //Read input file location
+        String location = fileLocation.input;
+        //Read weather data inputs
+        //Open file
+        String fileName = location.concat("\\" + fileLocation.weatherFilename);
+
+        try {
+            //check the file exists
+            new FileReader(fileName);
+        } catch (FileNotFoundException e) {
+            //Can't find text file defining locations of input and output folders.
+            System.out.println(e.getMessage());
+            return weatherDB;
+        }
+
+        //Load data
+        List<String> dataArray = new LinkedList<>();
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(new File(fileName)));
+            String st;
+            while ((st = br.readLine()) != null) {
+                dataArray.add(st);
+            }
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+
+        return weatherDB;
     }
 
     /**
@@ -122,28 +160,26 @@ public class AOS_Initialize {
         //Initialise model termination condition
         clockStruct.ModelTermination = false;
         // Simulation start time as serial date number
-        clockStruct.SimulationStartDate = Date.valueOf(clockStruct.SimulationStartTime);
+        clockStruct.SimulationStartDate = (int) ((Date.valueOf(clockStruct.SimulationStartTime).getTime() / MILLISECONDS_IN_DAY) + DATE_ADD);
         //Simulation end time as serial date number
-        clockStruct.SimulationEndDate = Date.valueOf(clockStruct.SimulationEndTime);
+        clockStruct.SimulationEndDate = (int) ((Date.valueOf(clockStruct.SimulationEndTime).getTime() / MILLISECONDS_IN_DAY) + DATE_ADD);
         //Time step (years)
         clockStruct.TimeStep = 1;
         //Total numbers of time steps (days)
-        clockStruct.nSteps = (int) ((clockStruct.SimulationEndDate.getTime() - clockStruct.SimulationStartDate.getTime()) / MILLISECONDS_IN_DAY);
+        clockStruct.nSteps = clockStruct.SimulationEndDate - clockStruct.SimulationStartDate;
 
         //Time spans
-        int[] TimeSpan = new int[clockStruct.nSteps];
-//        TimeSpan[0] = clockStruct.SimulationStartDate;
-//        TimeSpan[clockStruct.nSteps] = clockStruct.SimulationEndDate;
-        TimeSpan[0] = 0;
-        TimeSpan[clockStruct.nSteps - 1] = clockStruct.nSteps;
+        int[] TimeSpan = new int[clockStruct.nSteps + 1];
+        TimeSpan[0] = clockStruct.SimulationStartDate;
+        TimeSpan[clockStruct.nSteps - 1] = clockStruct.SimulationEndDate;
         for (int ss = 1; ss < clockStruct.nSteps; ss++) {
             TimeSpan[ss] = TimeSpan[ss - 1] + 1;
         }
         clockStruct.TimeSpan = TimeSpan;
         //Time at start of current time step
-        clockStruct.StepStartTime = clockStruct.TimeSpan[clockStruct.TimeStepCounter];
+        clockStruct.StepStartTime = clockStruct.TimeSpan[clockStruct.TimeStepCounter - 1];
         //Time at end of current time step
-        clockStruct.StepEndTime = clockStruct.TimeSpan[clockStruct.TimeStepCounter + 1];
+        clockStruct.StepEndTime = clockStruct.TimeSpan[clockStruct.TimeStepCounter];
         //Number of time-steps (per day) for soil evaporation calculation
         clockStruct.EvapTimeSteps = 20;
 
