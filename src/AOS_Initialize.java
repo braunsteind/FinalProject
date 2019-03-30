@@ -1,12 +1,16 @@
 import java.io.*;
+import java.sql.Date;
 import java.util.LinkedList;
 import java.util.List;
 
 public class AOS_Initialize {
 
+    public static final int MILLISECONDS_IN_DAY = 86400000;
+
     public AOS_Initialize() {
         FileLocation fileLocation = AOS_ReadFileLocations();
         ClockStruct clockStruct = AOS_ReadClockParameters(fileLocation);
+        int x = 5;
     }
 
     /**
@@ -108,8 +112,8 @@ public class AOS_Initialize {
         }
 
         //Create and assign variables
-        String tempSimulationStartTime = dataArray.get(1).split(",")[1];
-        String tempSimulationEndTime = dataArray.get(2).split(",")[1];
+        clockStruct.SimulationStartTime = dataArray.get(1).split(",")[1];
+        clockStruct.SimulationEndTime = dataArray.get(2).split(",")[1];
         clockStruct.OffSeason = dataArray.get(3).split(",")[1];
 
         //Define clock parameters
@@ -118,24 +122,20 @@ public class AOS_Initialize {
         //Initialise model termination condition
         clockStruct.ModelTermination = false;
         // Simulation start time as serial date number
-        //TODO
-//        String DateStaV = datevec(clockStruct.SimulationStartTime);
-//        clockStruct.SimulationStartDate = datenum(DateStaV);
-        clockStruct.SimulationStartDate = datenum(DateStaV);
+        clockStruct.SimulationStartDate = Date.valueOf(clockStruct.SimulationStartTime);
         //Simulation end time as serial date number
-        //TODO
-//        String DateStoV = datevec(clockStruct.SimulationEndTime);
-//        clockStruct.SimulationEndDate = datenum(DateStoV);
+        clockStruct.SimulationEndDate = Date.valueOf(clockStruct.SimulationEndTime);
         //Time step (years)
         clockStruct.TimeStep = 1;
         //Total numbers of time steps (days)
-        clockStruct.nSteps = clockStruct.SimulationEndDate - clockStruct.SimulationStartDate;
-
+        clockStruct.nSteps = (int) ((clockStruct.SimulationEndDate.getTime() - clockStruct.SimulationStartDate.getTime()) / MILLISECONDS_IN_DAY);
 
         //Time spans
         int[] TimeSpan = new int[clockStruct.nSteps];
-        TimeSpan[0] = clockStruct.SimulationStartDate;
-        TimeSpan[clockStruct.nSteps] = clockStruct.SimulationEndDate;
+//        TimeSpan[0] = clockStruct.SimulationStartDate;
+//        TimeSpan[clockStruct.nSteps] = clockStruct.SimulationEndDate;
+        TimeSpan[0] = 0;
+        TimeSpan[clockStruct.nSteps - 1] = clockStruct.nSteps;
         for (int ss = 1; ss < clockStruct.nSteps; ss++) {
             TimeSpan[ss] = TimeSpan[ss - 1] + 1;
         }
