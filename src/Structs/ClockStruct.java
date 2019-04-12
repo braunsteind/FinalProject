@@ -1,3 +1,5 @@
+package Structs;
+
 public class ClockStruct {
     public String SimulationStartTime;
     public String SimulationEndTime;
