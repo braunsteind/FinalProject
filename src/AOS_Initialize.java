@@ -1,4 +1,5 @@
 import Structs.ClockStruct;
+import Structs.Crop;
 import Structs.FileLocation;
 import Structs.ParamStruct;
 
@@ -17,7 +18,7 @@ public class AOS_Initialize {
         FileLocation fileLocation = AOS_ReadFileLocations();
         ClockStruct clockStruct = AOS_ReadClockParameters(fileLocation);
         double[][] WeatherStruct = AOS_ReadWeatherInputs(fileLocation, clockStruct);
-        AOS_ReadModelParameters(fileLocation);
+        AOS_ReadModelParameters(fileLocation, clockStruct);
     }
 
     /**
@@ -191,7 +192,7 @@ public class AOS_Initialize {
         return clockStruct;
     }
 
-    private void AOS_ReadModelParameters(FileLocation fileLocation) {
+    private void AOS_ReadModelParameters(FileLocation fileLocation, ClockStruct clockStruct) {
         ParamStruct paramStruct = new ParamStruct();
 
         //Read input file location
@@ -354,8 +355,134 @@ public class AOS_Initialize {
             String SwitchGDD = dataArray.get(4).split(",")[1];
             String PlantingDateStr = dataArray.get(5).split(",")[1];
             String HarvestDateStr = dataArray.get(6).split(",")[1];
-            //TODO add the rest of the file to DataArray
-            String[] DataArray = dataArray.get(7).split(",");
+            ArrayList<String> temp = new ArrayList<>();
+            for (int j = 7; j < dataArray.size(); j++) {
+                temp.add(dataArray.get(j).split(",")[1]);
+            }
+            String[] DataArray = temp.toArray(new String[temp.size()]);
+
+            //Create crop parameter structure
+            paramStruct.crop = new Crop();
+            paramStruct.crop.Emergence = Double.parseDouble(DataArray[0]);
+            paramStruct.crop.MaxRooting = Double.parseDouble(DataArray[1]);
+            paramStruct.crop.Senescence = Double.parseDouble(DataArray[2]);
+            paramStruct.crop.Maturity = Double.parseDouble(DataArray[3]);
+            paramStruct.crop.HIstart = Double.parseDouble(DataArray[4]);
+            paramStruct.crop.Flowering = Double.parseDouble(DataArray[5]);
+            paramStruct.crop.YldForm = Double.parseDouble(DataArray[6]);
+            paramStruct.crop.GDDmethod = Double.parseDouble(DataArray[7]);
+            paramStruct.crop.Tbase = Double.parseDouble(DataArray[8]);
+            paramStruct.crop.Tupp = Double.parseDouble(DataArray[9]);
+            paramStruct.crop.PolHeatStress = Double.parseDouble(DataArray[10]);
+            paramStruct.crop.Tmax_up = Double.parseDouble(DataArray[11]);
+            paramStruct.crop.Tmax_lo = Double.parseDouble(DataArray[12]);
+            paramStruct.crop.PolColdStress = Double.parseDouble(DataArray[13]);
+            paramStruct.crop.Tmin_up = Double.parseDouble(DataArray[14]);
+            paramStruct.crop.Tmin_lo = Double.parseDouble(DataArray[15]);
+            paramStruct.crop.TrColdStress = Double.parseDouble(DataArray[16]);
+            paramStruct.crop.GDD_up = Double.parseDouble(DataArray[17]);
+            paramStruct.crop.GDD_lo = Double.parseDouble(DataArray[18]);
+            paramStruct.crop.Zmin = Double.parseDouble(DataArray[19]);
+            paramStruct.crop.Zmax = Double.parseDouble(DataArray[20]);
+            paramStruct.crop.fshape_r = Double.parseDouble(DataArray[21]);
+            paramStruct.crop.SxTopQ = Double.parseDouble(DataArray[22]);
+            paramStruct.crop.SxBotQ = Double.parseDouble(DataArray[23]);
+            paramStruct.crop.SeedSize = Double.parseDouble(DataArray[24]);
+            paramStruct.crop.PlantPop = Double.parseDouble(DataArray[25]);
+            paramStruct.crop.CCx = Double.parseDouble(DataArray[26]);
+            paramStruct.crop.CDC = Double.parseDouble(DataArray[27]);
+            paramStruct.crop.CGC = Double.parseDouble(DataArray[28]);
+            paramStruct.crop.Kcb = Double.parseDouble(DataArray[29]);
+            paramStruct.crop.fage = Double.parseDouble(DataArray[30]);
+            paramStruct.crop.WP = Double.parseDouble(DataArray[31]);
+            paramStruct.crop.WPy = Double.parseDouble(DataArray[32]);
+            paramStruct.crop.fsink = Double.parseDouble(DataArray[33]);
+            paramStruct.crop.HI0 = Double.parseDouble(DataArray[34]);
+            paramStruct.crop.dHI_pre = Double.parseDouble(DataArray[35]);
+            paramStruct.crop.a_HI = Double.parseDouble(DataArray[36]);
+            paramStruct.crop.b_HI = Double.parseDouble(DataArray[37]);
+            paramStruct.crop.dHI0 = Double.parseDouble(DataArray[38]);
+            paramStruct.crop.Determinant = Double.parseDouble(DataArray[39]);
+            paramStruct.crop.exc = Double.parseDouble(DataArray[40]);
+            paramStruct.crop.p_up1 = Double.parseDouble(DataArray[41]);
+            paramStruct.crop.p_up2 = Double.parseDouble(DataArray[42]);
+            paramStruct.crop.p_up3 = Double.parseDouble(DataArray[43]);
+            paramStruct.crop.p_up4 = Double.parseDouble(DataArray[44]);
+            paramStruct.crop.p_lo1 = Double.parseDouble(DataArray[45]);
+            paramStruct.crop.p_lo2 = Double.parseDouble(DataArray[46]);
+            paramStruct.crop.p_lo3 = Double.parseDouble(DataArray[47]);
+            paramStruct.crop.p_lo4 = Double.parseDouble(DataArray[48]);
+            paramStruct.crop.fshape_w1 = Double.parseDouble(DataArray[49]);
+            paramStruct.crop.fshape_w2 = Double.parseDouble(DataArray[50]);
+            paramStruct.crop.fshape_w3 = Double.parseDouble(DataArray[51]);
+            paramStruct.crop.fshape_w4 = Double.parseDouble(DataArray[52]);
+
+            //Add additional parameters
+            paramStruct.crop.CropType = Double.parseDouble(CropType);
+            paramStruct.crop.PlantMethod = Double.parseDouble(PlantMethod);
+            paramStruct.crop.CalendarType = Double.parseDouble(CalendarType);
+            paramStruct.crop.SwitchGDD = Double.parseDouble(SwitchGDD);
+            paramStruct.crop.PlantingDate = PlantingDateStr;
+            paramStruct.crop.HarvestDate = HarvestDateStr;
+            //Add irrigation management information
+            paramStruct.crop.IrrigationFile = CropInfo[2];
+            paramStruct.crop.FieldMngtFile = CropInfo[3];
+            //Assign default program properties (should not be changed without expert knowledge)
+            paramStruct.crop.fshape_b = 13.8135; //Shape factor describing the reduction in biomass production for insufficient growing degree days
+            paramStruct.crop.PctZmin = 70; //Initial percentage of minimum effective rooting depth
+            paramStruct.crop.fshape_ex = -6; //Shape factor describing the effects of water stress on root expansion
+            paramStruct.crop.ETadj = 1; //Adjustment to water stress thresholds depending on daily ET0 (0 = No, 1 = Yes)
+            paramStruct.crop.Aer = 5; //Vol (%) below saturation at which stress begins to occur due to deficient aeration
+            paramStruct.crop.LagAer = 3; //Number of days lag before aeration stress affects crop growth
+            paramStruct.crop.beta = 12; //Reduction (%) to p_lo3 when early canopy senescence is triggered
+            paramStruct.crop.a_Tr = 1; //Exponent parameter for adjustment of Kcx once senescence is triggered
+            paramStruct.crop.GermThr = 0.2; //Proportion of total water storage needed for crop to germinate
+            paramStruct.crop.CCmin = 0.05; //Minimum canopy size below which yield formation cannot occur
+            paramStruct.crop.MaxFlowPct = 100 / 3; //Proportion of total flowering time (%) at which peak flowering occurs
+            paramStruct.crop.HIini = 0.01; //Initial harvest index
+            paramStruct.crop.bsted = 0.000138; //WP co2 adjustment parameter given by Steduto et al. 2007
+            paramStruct.crop.bface = 0.001165; //WP co2 adjustment parameter given by FACE experiments
+            paramStruct.crop.fsink /= 100; //Convert from %
+
+            //Find planting and harvest dates
+            if (nCrops > 1 || Rotation.compareTo("Y") == 0) {
+                //Crop rotation occurs during the simulation period
+                //Open rotation time-series file
+                fileName = location.concat("\\" + fileLocation.cropFilename);
+                try {
+                    //check the file exists
+                    new FileReader(fileName);
+                } catch (FileNotFoundException e) {
+                    //Can't find text file defining locations of input and output folders.
+                    System.out.println(e.getMessage());
+                    return;
+                }
+
+                //Load data
+                dataArray = new LinkedList<>();
+                try {
+                    BufferedReader br = new BufferedReader(new FileReader(new File(fileName)));
+                    String st;
+                    while ((st = br.readLine()) != null) {
+                        dataArray.add(st);
+                    }
+                } catch (IOException e) {
+                    System.out.println(e.getMessage());
+                }
+                //Extract data
+                //TODO
+//                String PlantDates = datenum(DataArray{1,1},'dd/mm/yyyy');
+//                String HarvestDates = datenum(DataArray{1,2},'dd/mm/yyyy');
+//                int CropChoices = DataArray{1,3};
+            } else if (nCrops == 1) {
+                //Only one crop type considered during simulation - i.e. no rotations
+                //either within or between yars
+                //Get start and end years for full simulation
+//                String SimStaDate = datevec(clockStruct.SimulationStartDate);
+//                String SimEndDate = datevec(clockStruct.SimulationEndDate);
+                //Get temporary crop structure
+                Crop CropTemp = paramStruct.crop;
+            }
         }
     }
 
