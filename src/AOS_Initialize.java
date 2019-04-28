@@ -321,6 +321,10 @@ public class AOS_Initialize {
         //Crop information (type and filename)
         String[] CropInfo = dataArray.get(6).split(",");
 
+        //declare
+        int[] PlantDates = new int[1];
+        int[] HarvestDates = new int[1];
+
         //Read crop parameter input files
         //Create blank structure
 
@@ -471,7 +475,9 @@ public class AOS_Initialize {
                 }
                 //Extract data
                 //TODO
-//                String PlantDates = datenum(DataArray{1,1},'dd/mm/yyyy');
+                PlantDates = datenum(DataArray {
+                    1, 1
+                },'dd/mm/yyyy');
 //                String HarvestDates = datenum(DataArray{1,2},'dd/mm/yyyy');
 //                int CropChoices = DataArray{1,3};
             } else if (nCrops == 1) {
@@ -482,7 +488,43 @@ public class AOS_Initialize {
 //                String SimEndDate = datevec(clockStruct.SimulationEndDate);
                 //Get temporary crop structure
                 Crop CropTemp = paramStruct.crop;
+                //Does growing season extend across multiple calendar years
+                if (datenum(CropTemp.PlantingDate, 'dd/mm') < datenum(CropTemp.HarvestDate, 'dd/mm')) {
+//                    YrsPlant = SimStaDate(1):SimEndDate(1);
+//                    YrsHarvest = YrsPlant;
+                } else {
+//                    YrsPlant = SimStaDate(1):SimEndDate(1) - 1;
+//                    YrsHarvest = SimStaDate(1) + 1:SimEndDate(1);
+                }
+                //orrect for partial first growing season (may occur when simulating
+                //off-season soil water balance)
+                if (datenum(strcat(CropTemp.PlantingDate, '/', num2str(YrsPlant(1))), 'dd/mm/yyyy') < AOS_ClockStruct.SimulationStartDate) {
+//                    YrsPlant = YrsPlant(2:end);
+//                    YrsHarvest = YrsHarvest(2:end);
+                }
+                //Define blank variables
+                PlantDates = zeros(length(YrsPlant), 1);
+//                HarvestDates = zeros(length(YrsHarvest), 1);
+                Crop CropChoices;
+                //Determine planting and harvest dates
+                for (int ii = 0; ii < YrsPlant; ii++) {
+//                    PlantDates(ii) = datenum(strcat(CropTemp.PlantingDate, '/', num2str(YrsPlant(ii))), 'dd/mm/yyyy');
+//                    HarvestDates(ii) = datenum(strcat(CropTemp.HarvestDate, '/', num2str(YrsHarvest(ii))), 'dd/mm/yyyy');
+                    //TODO check it
+                    CropChoices = paramStruct.crop;
+                }
             }
+        }
+        //Update clock parameters %%
+        //Store planting and harvest dates
+        clockStruct.PlantingDate = PlantDates;
+        clockStruct.HarvestDate = HarvestDates;
+        clockStruct.nSeasons = PlantDates.length;
+        //Initialise growing season counter
+        if (clockStruct.StepStartTime == clockStruct.PlantingDate[0]) {
+            clockStruct.SeasonCounter = 1;
+        } else {
+            clockStruct.SeasonCounter = 0;
         }
     }
 

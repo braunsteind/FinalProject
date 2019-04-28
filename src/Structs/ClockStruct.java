@@ -14,4 +14,8 @@ public class ClockStruct {
     public int StepStartTime;
     public int StepEndTime;
     public int EvapTimeSteps;
+    public int[] PlantingDate;
+    public int[] HarvestDate;
+    public int nSeasons;
+    public int SeasonCounter;
 }
