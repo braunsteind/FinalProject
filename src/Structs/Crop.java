@@ -1,5 +1,7 @@
 package Structs;
 
+import java.lang.reflect.Field;
+
 public class Crop {
     public double CropType;
     public double PlantMethod;
@@ -79,4 +81,8 @@ public class Crop {
     public double HIini;
     public double bsted;
     public double bface;
+
+    public Field[] getDeclaredFields() {
+        return getClass().getDeclaredFields();
+    }
 }

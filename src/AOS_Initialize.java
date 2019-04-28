@@ -1,9 +1,7 @@
-import Structs.ClockStruct;
-import Structs.Crop;
-import Structs.FileLocation;
-import Structs.ParamStruct;
+import Structs.*;
 
 import java.io.*;
+import java.lang.reflect.Field;
 import java.sql.Date;
 import java.util.ArrayList;
 import java.util.LinkedList;
@@ -18,7 +16,8 @@ public class AOS_Initialize {
         FileLocation fileLocation = AOS_ReadFileLocations();
         ClockStruct clockStruct = AOS_ReadClockParameters(fileLocation);
         double[][] WeatherStruct = AOS_ReadWeatherInputs(fileLocation, clockStruct);
-        AOS_ReadModelParameters(fileLocation, clockStruct);
+        ParamStruct paramStruct = AOS_ReadModelParameters(fileLocation, clockStruct);
+        AOS_ReadIrrigationManagement(fileLocation, paramStruct);
     }
 
     /**
@@ -192,7 +191,7 @@ public class AOS_Initialize {
         return clockStruct;
     }
 
-    private void AOS_ReadModelParameters(FileLocation fileLocation, ClockStruct clockStruct) {
+    private ParamStruct AOS_ReadModelParameters(FileLocation fileLocation, ClockStruct clockStruct) {
         ParamStruct paramStruct = new ParamStruct();
 
         //Read input file location
@@ -526,8 +525,47 @@ public class AOS_Initialize {
         } else {
             clockStruct.SeasonCounter = 0;
         }
+
+        return paramStruct;
     }
 
+    public void AOS_ReadIrrigationManagement(FileLocation fileLocation, ParamStruct paramStruct) {
+        //Read AOS input file location %%
+        String location = fileLocation.input;
+
+        //Read irrigation management input files %%
+        //Check for number of crop types
+        Crop a = new Crop();
+        Field[] crop = a.getDeclaredFields();
+        int nCrops = crop.length;
+        //Create blank structure
+        IrrMngtStruct irrMngtStruct = new IrrMngtStruct();
+
+        for (int ii = 0; ii < nCrops; ii++) {
+            //Open file
+            String fileName = location.concat(paramStruct.crop.IrrigationFile);
+            try {
+                //check the file exists
+                new FileReader(fileName);
+            } catch (FileNotFoundException e) {
+                //Can't find text file defining locations of input and output folders.
+                System.out.println(e.getMessage());
+                return;
+            }
+
+            //Load data
+            List<String> dataArray = new LinkedList<>();
+            try {
+                BufferedReader br = new BufferedReader(new FileReader(new File(fileName)));
+                String st;
+                while ((st = br.readLine()) != null) {
+                    dataArray.add(st);
+                }
+            } catch (IOException e) {
+                System.out.println(e.getMessage());
+            }
+        }
+    }
 
     //array operators
     private Double[] cumsum(Double[] in) {
