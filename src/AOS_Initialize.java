@@ -206,7 +206,7 @@ public class AOS_Initialize {
         } catch (FileNotFoundException e) {
             //Can't find text file defining locations of input and output folders.
             System.out.println(e.getMessage());
-            return;
+            return paramStruct;
         }
 
         //Load data
@@ -258,7 +258,7 @@ public class AOS_Initialize {
         } catch (FileNotFoundException e) {
             //Can't find text file defining locations of input and output folders.
             System.out.println(e.getMessage());
-            return;
+            return paramStruct;
         }
 
         //Load data
@@ -296,7 +296,7 @@ public class AOS_Initialize {
         } catch (FileNotFoundException e) {
             //Can't find text file defining locations of input and output folders.
             System.out.println(e.getMessage());
-            return;
+            return paramStruct;
         }
 
         //Load data
@@ -320,10 +320,6 @@ public class AOS_Initialize {
         //Crop information (type and filename)
         String[] CropInfo = dataArray.get(6).split(",");
 
-        //declare
-        int[] PlantDates = new int[1];
-        int[] HarvestDates = new int[1];
-
         //Read crop parameter input files
         //Create blank structure
 
@@ -337,7 +333,7 @@ public class AOS_Initialize {
             } catch (FileNotFoundException e) {
                 //Can't find text file defining locations of input and output folders.
                 System.out.println(e.getMessage());
-                return;
+                return paramStruct;
             }
 
             //Load data
@@ -446,12 +442,110 @@ public class AOS_Initialize {
             paramStruct.crop.bsted = 0.000138; //WP co2 adjustment parameter given by Steduto et al. 2007
             paramStruct.crop.bface = 0.001165; //WP co2 adjustment parameter given by FACE experiments
             paramStruct.crop.fsink /= 100; //Convert from %
+        }
 
-            //Find planting and harvest dates
-            if (nCrops > 1 || Rotation.compareTo("Y") == 0) {
-                //Crop rotation occurs during the simulation period
-                //Open rotation time-series file
-                fileName = location.concat("\\" + fileLocation.cropFilename);
+        //Find planting and harvest dates
+        if (nCrops > 1 || Rotation.compareTo("Y") == 0) {
+            //Crop rotation occurs during the simulation period
+            //Open rotation time-series file
+            fileName = location.concat("\\" + fileLocation.cropFilename);
+            try {
+                //check the file exists
+                new FileReader(fileName);
+            } catch (FileNotFoundException e) {
+                //Can't find text file defining locations of input and output folders.
+                System.out.println(e.getMessage());
+                return paramStruct;
+            }
+
+            //Load data
+            dataArray = new LinkedList<>();
+            try {
+                BufferedReader br = new BufferedReader(new FileReader(new File(fileName)));
+                String st;
+                while ((st = br.readLine()) != null) {
+                    dataArray.add(st);
+                }
+            } catch (IOException e) {
+                System.out.println(e.getMessage());
+            }
+            //Extract data
+            //TODO
+            String[] PlantDates = new String[1];
+//                String HarvestDates = datenum(DataArray{1,2},'dd/mm/yyyy');
+//                int CropChoices = DataArray{1,3};
+        } else if (nCrops == 1) {
+            //Only one crop type considered during simulation - i.e. no rotations
+            //either within or between yars
+            //Get start and end years for full simulation
+            String[] split = clockStruct.SimulationStartTime.split("-");
+            String[] SimStaDate = {split[0], split[1], split[2]};
+            split = clockStruct.SimulationEndTime.split("-");
+            String[] SimEndDate = {split[0], split[1], split[2]};
+            //Get temporary crop structure
+            Crop CropTemp = paramStruct.crop;
+            //Does growing season extend across multiple calendar years
+            int[] PlantDatesSplit = {Integer.parseInt(CropTemp.PlantingDate.split("-")[0]), Integer.parseInt(CropTemp.PlantingDate.split("-")[1])};
+            int[] HarvestDateSplit = {Integer.parseInt(CropTemp.HarvestDate.split("-")[0]), Integer.parseInt(CropTemp.HarvestDate.split("-")[0])};
+            if (PlantDatesSplit[1] < HarvestDateSplit[1] || (PlantDatesSplit[1] == HarvestDateSplit[1] && PlantDatesSplit[0] < HarvestDateSplit[0])) {
+                ArrayList<String> YrsPlantTemp = new ArrayList<>();
+                for (int i = Integer.parseInt(SimStaDate[0]); i <= Integer.parseInt(SimEndDate[0]); i++) {
+                    YrsPlantTemp.add(String.valueOf(i));
+                }
+                String[] YrsPlant = YrsPlantTemp.toArray(new String[YrsPlantTemp.size()]);
+                String[] YrsHarvest = YrsPlant.clone();
+            } else {
+//                    YrsPlant = SimStaDate(1):SimEndDate(1) - 1;
+//                    YrsHarvest = SimStaDate(1) + 1:SimEndDate(1);
+            }
+            //Correct for partial first growing season (may occur when simulating
+            //off-season soil water balance)
+//            if (datenum(strcat(CropTemp.PlantingDate, '/', num2str(YrsPlant(1))), 'dd/mm/yyyy') < clockStruct.SimulationStartDate) {
+////                    YrsPlant = YrsPlant(2:end);
+////                    YrsHarvest = YrsHarvest(2:end);
+//            }
+//            //Define blank variables
+//            PlantDates = zeros(length(YrsPlant), 1);
+////                HarvestDates = zeros(length(YrsHarvest), 1);
+//            Crop CropChoices;
+//            //Determine planting and harvest dates
+//            for (int ii = 0; ii < YrsPlant; ii++) {
+////                    PlantDates(ii) = datenum(strcat(CropTemp.PlantingDate, '/', num2str(YrsPlant(ii))), 'dd/mm/yyyy');
+////                    HarvestDates(ii) = datenum(strcat(CropTemp.HarvestDate, '/', num2str(YrsHarvest(ii))), 'dd/mm/yyyy');
+//                //TODO check it
+//                CropChoices = paramStruct.crop;
+//            }
+//        }
+//        //Update clock parameters %%
+//        //Store planting and harvest dates
+//        clockStruct.PlantingDate = PlantDates;
+//        clockStruct.HarvestDate = HarvestDates;
+//        clockStruct.nSeasons = PlantDates.length;
+//        //Initialise growing season counter
+//        if (clockStruct.StepStartTime == clockStruct.PlantingDate[0]) {
+//            clockStruct.SeasonCounter = 1;
+//        } else {
+//            clockStruct.SeasonCounter = 0;
+//        }
+
+            return paramStruct;
+        }
+
+        public void AOS_ReadIrrigationManagement (FileLocation fileLocation, ParamStruct paramStruct){
+            //Read AOS input file location %%
+            String location = fileLocation.input;
+
+            //Read irrigation management input files %%
+            //Check for number of crop types
+            Crop a = new Crop();
+            Field[] crop = a.getDeclaredFields();
+            int nCrops = crop.length;
+            //Create blank structure
+            IrrMngtStruct irrMngtStruct = new IrrMngtStruct();
+
+            for (int ii = 0; ii < nCrops; ii++) {
+                //Open file
+                String fileName = location.concat(paramStruct.crop.IrrigationFile);
                 try {
                     //check the file exists
                     new FileReader(fileName);
@@ -462,7 +556,7 @@ public class AOS_Initialize {
                 }
 
                 //Load data
-                dataArray = new LinkedList<>();
+                List<String> dataArray = new LinkedList<>();
                 try {
                     BufferedReader br = new BufferedReader(new FileReader(new File(fileName)));
                     String st;
@@ -472,134 +566,42 @@ public class AOS_Initialize {
                 } catch (IOException e) {
                     System.out.println(e.getMessage());
                 }
-                //Extract data
-                //TODO
-                PlantDates = datenum(DataArray {
-                    1, 1
-                },'dd/mm/yyyy');
-//                String HarvestDates = datenum(DataArray{1,2},'dd/mm/yyyy');
-//                int CropChoices = DataArray{1,3};
-            } else if (nCrops == 1) {
-                //Only one crop type considered during simulation - i.e. no rotations
-                //either within or between yars
-                //Get start and end years for full simulation
-//                String SimStaDate = datevec(clockStruct.SimulationStartDate);
-//                String SimEndDate = datevec(clockStruct.SimulationEndDate);
-                //Get temporary crop structure
-                Crop CropTemp = paramStruct.crop;
-                //Does growing season extend across multiple calendar years
-                if (datenum(CropTemp.PlantingDate, 'dd/mm') < datenum(CropTemp.HarvestDate, 'dd/mm')) {
-//                    YrsPlant = SimStaDate(1):SimEndDate(1);
-//                    YrsHarvest = YrsPlant;
-                } else {
-//                    YrsPlant = SimStaDate(1):SimEndDate(1) - 1;
-//                    YrsHarvest = SimStaDate(1) + 1:SimEndDate(1);
-                }
-                //orrect for partial first growing season (may occur when simulating
-                //off-season soil water balance)
-                if (datenum(strcat(CropTemp.PlantingDate, '/', num2str(YrsPlant(1))), 'dd/mm/yyyy') < AOS_ClockStruct.SimulationStartDate) {
-//                    YrsPlant = YrsPlant(2:end);
-//                    YrsHarvest = YrsHarvest(2:end);
-                }
-                //Define blank variables
-                PlantDates = zeros(length(YrsPlant), 1);
-//                HarvestDates = zeros(length(YrsHarvest), 1);
-                Crop CropChoices;
-                //Determine planting and harvest dates
-                for (int ii = 0; ii < YrsPlant; ii++) {
-//                    PlantDates(ii) = datenum(strcat(CropTemp.PlantingDate, '/', num2str(YrsPlant(ii))), 'dd/mm/yyyy');
-//                    HarvestDates(ii) = datenum(strcat(CropTemp.HarvestDate, '/', num2str(YrsHarvest(ii))), 'dd/mm/yyyy');
-                    //TODO check it
-                    CropChoices = paramStruct.crop;
-                }
             }
         }
-        //Update clock parameters %%
-        //Store planting and harvest dates
-        clockStruct.PlantingDate = PlantDates;
-        clockStruct.HarvestDate = HarvestDates;
-        clockStruct.nSeasons = PlantDates.length;
-        //Initialise growing season counter
-        if (clockStruct.StepStartTime == clockStruct.PlantingDate[0]) {
-            clockStruct.SeasonCounter = 1;
-        } else {
-            clockStruct.SeasonCounter = 0;
-        }
 
-        return paramStruct;
-    }
-
-    public void AOS_ReadIrrigationManagement(FileLocation fileLocation, ParamStruct paramStruct) {
-        //Read AOS input file location %%
-        String location = fileLocation.input;
-
-        //Read irrigation management input files %%
-        //Check for number of crop types
-        Crop a = new Crop();
-        Field[] crop = a.getDeclaredFields();
-        int nCrops = crop.length;
-        //Create blank structure
-        IrrMngtStruct irrMngtStruct = new IrrMngtStruct();
-
-        for (int ii = 0; ii < nCrops; ii++) {
-            //Open file
-            String fileName = location.concat(paramStruct.crop.IrrigationFile);
-            try {
-                //check the file exists
-                new FileReader(fileName);
-            } catch (FileNotFoundException e) {
-                //Can't find text file defining locations of input and output folders.
-                System.out.println(e.getMessage());
-                return;
+        //array operators
+        private Double[] cumsum (Double[]in){
+            Double[] out = new Double[in.length];
+            Double total = 0.0;
+            for (int i = 0; i < in.length; i++) {
+                total += in[i];
+                out[i] = total;
             }
+            return out;
+        }
 
-            //Load data
-            List<String> dataArray = new LinkedList<>();
-            try {
-                BufferedReader br = new BufferedReader(new FileReader(new File(fileName)));
-                String st;
-                while ((st = br.readLine()) != null) {
-                    dataArray.add(st);
-                }
-            } catch (IOException e) {
-                System.out.println(e.getMessage());
+        private Double[] dot (Double num, Double[]array){
+            Double[] newArray = new Double[array.length];
+            for (int i = 0; i < array.length; i++) {
+                newArray[i] = num * array[i];
             }
+            return newArray;
         }
-    }
 
-    //array operators
-    private Double[] cumsum(Double[] in) {
-        Double[] out = new Double[in.length];
-        Double total = 0.0;
-        for (int i = 0; i < in.length; i++) {
-            total += in[i];
-            out[i] = total;
+        private Double[] round (Double[]array){
+            Double[] newArray = new Double[array.length];
+            for (int i = 0; i < array.length; i++) {
+                Long temp = Math.round(array[i]);
+                newArray[i] = temp.doubleValue();
+            }
+            return newArray;
         }
-        return out;
-    }
 
-    private Double[] dot(Double num, Double[] array) {
-        Double[] newArray = new Double[array.length];
-        for (int i = 0; i < array.length; i++) {
-            newArray[i] = num * array[i];
+        private Double[] div ( double num, Double[] array){
+            Double[] newArray = new Double[array.length];
+            for (int i = 0; i < array.length; i++) {
+                newArray[i] = array[i] / num;
+            }
+            return newArray;
         }
-        return newArray;
     }
-
-    private Double[] round(Double[] array) {
-        Double[] newArray = new Double[array.length];
-        for (int i = 0; i < array.length; i++) {
-            Long temp = Math.round(array[i]);
-            newArray[i] = temp.doubleValue();
-        }
-        return newArray;
-    }
-
-    private Double[] div(double num, Double[] array) {
-        Double[] newArray = new Double[array.length];
-        for (int i = 0; i < array.length; i++) {
-            newArray[i] = array[i] / num;
-        }
-        return newArray;
-    }
-}
