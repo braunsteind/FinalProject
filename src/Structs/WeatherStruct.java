@@ -1,11 +1,7 @@
-// found under PerformTimeStep
+package Structs;
 
-public class IrrigationManagementStruct {
+public class WeatherStruct {
 
-    public double Tmin;
-    public double Tmax;
-    public int Precip;
-    public int RefET;
-    public int GOD;
+    public double[][] data;
 
 }

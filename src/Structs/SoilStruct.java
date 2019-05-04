@@ -1,4 +1,5 @@
 // member of AOS_InitialiseStruct -> ParameterStruct
+package Structs;
 
 public class SoilStruct {
 

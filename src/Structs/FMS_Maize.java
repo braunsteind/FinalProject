@@ -1,3 +1,5 @@
+package Structs;
+
 public class FMS_Maize {
 
     public int MulchPct;

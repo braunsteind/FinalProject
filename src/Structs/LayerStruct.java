@@ -1,3 +1,5 @@
+package Structs;
+
 public class LayerStruct {
 
     public int dz;

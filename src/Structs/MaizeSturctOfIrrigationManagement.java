@@ -1,3 +1,5 @@
+package Structs;
+
 public class MaizeSturctOfIrrigationManagement {
 
     public int IrrMethod;

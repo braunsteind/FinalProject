@@ -1,3 +1,5 @@
+package Structs;
+
 public class CompStruct {
     // all arrays are of size 12
     public double[] dz;

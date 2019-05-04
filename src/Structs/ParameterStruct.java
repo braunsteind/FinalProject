@@ -1,3 +1,5 @@
+package Structs;
+
 public class ParameterStruct {
 
     public SoilStruct Soil;

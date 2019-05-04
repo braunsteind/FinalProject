@@ -1,3 +1,5 @@
+package Structs;
+
 public class CO2Struct {
 
     public int[] data;

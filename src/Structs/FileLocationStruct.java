@@ -1,3 +1,5 @@
+package Structs;
+
 public class FileLocationStruct {
 
     public String Input;
