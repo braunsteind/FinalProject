@@ -82,6 +82,16 @@ public class Crop {
     public double bsted;
     public double bface;
 
+    public double CC0;
+    public double SxTop;
+    public double SxBot;
+    public double[] p_up;
+    public double[] p_lo;
+    public double[] fshape_w;
+
+    public double tLinSwitch;
+    public double dHILinear;
+
     public Field[] getDeclaredFields() {
         return getClass().getDeclaredFields();
     }

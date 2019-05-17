@@ -17,7 +17,318 @@ public class AOS_Initialize {
         ClockStruct clockStruct = AOS_ReadClockParameters(fileLocation);
         double[][] WeatherStruct = AOS_ReadWeatherInputs(fileLocation, clockStruct);
         ParamStruct paramStruct = AOS_ReadModelParameters(fileLocation, clockStruct);
-        AOS_ReadIrrigationManagement(fileLocation, paramStruct);
+        IrrMngtStruct irrMngtStruct = AOS_ReadIrrigationManagement(fileLocation, paramStruct);
+        FieldMngtStruct[] fieldMngtStruct = AOS_ReadFieldManagement(fileLocation, paramStruct);
+        GwStruct gwStruct = AOS_ReadGroundwaterTable(fileLocation);
+        AOS_ComputeVariables(paramStruct, WeatherStruct, clockStruct, gwStruct, fileLocation);
+    }
+
+    /**
+     * Function to compute additional variables needed to run AOS
+     */
+    public ParamStruct AOS_ComputeVariables(ParamStruct paramStruct, double[][] WeatherStruct, ClockStruct clockStruct, GwStruct gwStruct, FileLocation fileLocation) {
+        //Compute water contents and saturated hydraulic conductivity
+        if (paramStruct.soil.CalcSHP == 0) {
+            //Read soil texture file
+            String fileName = fileLocation.input.concat("\\" + fileLocation.soilHydrologyFilename);
+
+            try {
+                //check the file exists
+                new FileReader(fileName);
+            } catch (FileNotFoundException e) {
+                //Can't find text file defining soil hydraulic properties
+                System.out.println(e.getMessage());
+                return paramStruct;
+            }
+
+            //Load data
+            List<String> dataArray = new LinkedList<>();
+            try {
+                BufferedReader br = new BufferedReader(new FileReader(new File(fileName)));
+                String st;
+                while ((st = br.readLine()) != null) {
+                    dataArray.add(st);
+                }
+            } catch (IOException e) {
+                System.out.println(e.getMessage());
+            }
+
+            String[] split = dataArray.get(1).split(",");
+            //Assign data
+            paramStruct.soil.layer.dz = Double.parseDouble(split[1]);
+            paramStruct.soil.layer.th_s = Double.parseDouble(split[2]);
+            paramStruct.soil.layer.th_fc = Double.parseDouble(split[3]);
+            paramStruct.soil.layer.th_wp = Double.parseDouble(split[4]);
+            paramStruct.soil.layer.Ksat = Double.parseDouble(split[5]);
+            paramStruct.soil.layer.Penetrability = Double.parseDouble(split[6]);
+            //Calculate additional variables
+            paramStruct.soil.layer.th_dry = paramStruct.soil.layer.th_wp / 2;
+        }
+
+        paramStruct.soil.comp.th_fc = new Double[paramStruct.soil.nComp];
+        //Assign field capacity values to each soil compartment
+        for (int i = 0; i < paramStruct.soil.nComp; i++) {
+            paramStruct.soil.comp.th_fc[i] = paramStruct.soil.layer.th_fc;
+        }
+
+        //Calculate capillary rise parameters for all soil layers
+        //Only do calculation if water table is present. Calculations use equations
+        //described in Raes et al. (2012)
+        if (gwStruct.WaterTable == 1) {
+            //TODO
+        }
+
+        //Calculate drainage characteristic (tau)
+        //Calculations use equation given by Raes et al. 2012
+        for (int i = 0; i < paramStruct.soil.nLayer; i++) {
+            paramStruct.soil.layer.tau = 0.0866 * (Math.pow(paramStruct.soil.layer.Ksat, 0.35));
+            paramStruct.soil.layer.tau = Math.round((100 * paramStruct.soil.layer.tau)) / 100.0;
+            if (paramStruct.soil.layer.tau > 1) {
+                paramStruct.soil.layer.tau = 1;
+            } else if (paramStruct.soil.layer.tau < 0) {
+                paramStruct.soil.layer.tau = 0;
+            }
+        }
+
+
+        //Calculate readily evaporable water in surface layer %%
+        if (paramStruct.soil.AdjREW == 0) {
+            paramStruct.soil.REW = Math.round((1000 * (paramStruct.soil.layer.th_fc - paramStruct.soil.layer.th_dry) * paramStruct.soil.EvapZsurf));
+        }
+
+        //Calculate additional parameters for all crop types in mix
+        int nCrops = paramStruct.crop.length;
+        for (int i = 0; i < nCrops; i++) {
+            //Fractional canopy cover size at emergence
+            paramStruct.crop[i].CC0 = Math.round(10000 * (paramStruct.crop[i].PlantPop *
+                    paramStruct.crop[i].SeedSize) * Math.pow(10, -8)) / 10000.0;
+            //Root extraction terms
+            double SxTopQ = paramStruct.crop[i].SxTopQ;
+            double SxBotQ = paramStruct.crop[i].SxBotQ;
+            double S1 = paramStruct.crop[i].SxTopQ;
+            double S2 = paramStruct.crop[i].SxBotQ;
+
+            double SxTop, SxBot, xx, SS1, SS2;
+            if (S1 == S2) {
+                SxTop = S1;
+                SxBot = S2;
+            } else {
+                if (SxTopQ < SxBotQ) {
+                    S1 = SxBotQ;
+                    S2 = SxTopQ;
+                }
+                xx = 3 * (S2 / (S1 - S2));
+                if (xx < 0.5) {
+                    SS1 = (4 / 3.5) * S1;
+                    SS2 = 0;
+                } else {
+                    SS1 = (xx + 3.5) * (S1 / (xx + 3));
+                    SS2 = (xx - 0.5) * (S2 / xx);
+                }
+                if (SxTopQ > SxBotQ) {
+                    SxTop = SS1;
+                    SxBot = SS2;
+                } else {
+                    SxTop = SS2;
+                    SxBot = SS1;
+                }
+            }
+            paramStruct.crop[i].SxTop = SxTop;
+            paramStruct.crop[i].SxBot = SxBot;
+
+            //Water stress thresholds
+            paramStruct.crop[i].p_up = new double[]{paramStruct.crop[i].p_up1, paramStruct.crop[i].p_up2,
+                    paramStruct.crop[i].p_up3, paramStruct.crop[i].p_up4};
+            paramStruct.crop[i].p_lo = new double[]{paramStruct.crop[i].p_lo1, paramStruct.crop[i].p_lo2,
+                    paramStruct.crop[i].p_lo3, paramStruct.crop[i].p_lo4};
+            paramStruct.crop[i].fshape_w = new double[]{paramStruct.crop[i].fshape_w1, paramStruct.crop[i].fshape_w2,
+                    paramStruct.crop[i].fshape_w3, paramStruct.crop[i].fshape_w4};
+
+            //Flowering function
+            if (paramStruct.crop[i].CropType == 3) {
+                //TODO
+            }
+
+            //Crop calendar
+            paramStruct.crop[i] = AOS_ComputeCropCalendar(paramStruct.crop[i], WeatherStruct);
+
+            //Harvest index growth coefficient
+            //TODO
+
+            //Days to linear HI switch point
+            if (paramStruct.crop[i].CropType == 3) {
+                //Determine linear switch point and HIGC rate for fruit/grain crops
+                double tLin = 0, HIGClin = 0;
+                //TODO
+                //[tLin,HIGClin] = AOS_CalculateHILinear(paramStruct.crop[i]);
+                paramStruct.crop[i].tLinSwitch = tLin;
+                paramStruct.crop[i].dHILinear = HIGClin;
+            } else {
+                //No linear switch for leafy vegetable or root/tiber crops
+                paramStruct.crop[i].tLinSwitch = 0;
+                paramStruct.crop[i].dHILinear = 0;
+            }
+        }
+
+        //Calculate WP adjustment factor for elevation in CO2 concentration
+        //Load CO2 data
+        //TODO
+
+        return paramStruct;
+    }
+
+    private Crop AOS_ComputeCropCalendar(Crop crop, double[][] Weather) {
+        //TODO
+        return null;
+    }
+
+
+    /**
+     * Function to read input file and initialise groundwater table parameters
+     */
+    public GwStruct AOS_ReadGroundwaterTable(FileLocation fileLocation) {
+        //Read input file location
+        String location = fileLocation.input;
+        //Define empty structure
+        GwStruct gwStruct = new GwStruct();
+
+        //Read groundwater table input file
+        //Open file
+        String fileName = location.concat("\\" + fileLocation.groundwaterFilename);
+        try {
+            //check the file exists
+            new FileReader(fileName);
+        } catch (FileNotFoundException e) {
+            //Can't find text file defining irrigation management
+            System.out.println(e.getMessage());
+            return gwStruct;
+        }
+
+        //Load data
+        List<String> dataArray = new LinkedList<>();
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(new File(fileName)));
+            String st;
+            while ((st = br.readLine()) != null) {
+                dataArray.add(st);
+            }
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+
+        String WT = dataArray.get(1).split(",")[1];
+        String Method = dataArray.get(2).split(",")[1];
+
+        if (WT.compareTo("N") == 0) {
+            //No water table present (don't read the rest of the input file)
+            gwStruct.WaterTable = 0;
+        } else if (WT.compareTo("Y") == 0) {
+            //TODO
+            gwStruct.WaterTable = 1;
+        }
+        return gwStruct;
+    }
+
+    /**
+     * Function to read input files and initialise field management parameters
+     */
+    public FieldMngtStruct[] AOS_ReadFieldManagement(FileLocation fileLocation, ParamStruct paramStruct) {
+        //Get input file location
+        String location = fileLocation.input;
+        //Read field management parameter input files (growing seasons) %%
+        //Check for number of crop types
+
+        //TODO change
+        //Crops = fieldnames(ParamStruct.Crop);
+        int nCrops = 1;
+
+        //Create blank structure
+        FieldMngtStruct[] fieldMngtStruct = new FieldMngtStruct[nCrops + 1];
+        int i;
+        for (i = 0; i < nCrops; i++) {
+            //Open file
+            String fileName = location.concat("\\" + paramStruct.crop[i].FieldMngtFile);
+            try {
+                //check the file exists
+                new FileReader(fileName);
+            } catch (FileNotFoundException e) {
+                //Can't find text file defining irrigation management
+                System.out.println(e.getMessage());
+                return fieldMngtStruct;
+            }
+
+            //Load data
+            List<String> dataArray = new LinkedList<>();
+            try {
+                BufferedReader br = new BufferedReader(new FileReader(new File(fileName)));
+                String st;
+                while ((st = br.readLine()) != null) {
+                    dataArray.add(st);
+                }
+            } catch (IOException e) {
+                System.out.println(e.getMessage());
+            }
+
+            for (int j = 0; j < dataArray.size(); j++) {
+                String temp = dataArray.get(j).split(",")[1];
+                dataArray.set(j, temp);
+            }
+            dataArray.remove(0);
+
+            fieldMngtStruct[i] = new FieldMngtStruct();
+            fieldMngtStruct[i].Mulches = dataArray.get(0);
+            fieldMngtStruct[i].Bunds = dataArray.get(1);
+            fieldMngtStruct[i].CNadj = dataArray.get(2);
+            fieldMngtStruct[i].SRinhb = dataArray.get(3);
+            fieldMngtStruct[i].MulchPct = Double.parseDouble(dataArray.get(4));
+            fieldMngtStruct[i].fMulch = Double.parseDouble(dataArray.get(5));
+            fieldMngtStruct[i].zBund = Double.parseDouble(dataArray.get(6));
+            fieldMngtStruct[i].BundWater = Double.parseDouble(dataArray.get(7));
+            fieldMngtStruct[i].CNadjPct = Double.parseDouble(dataArray.get(8));
+        }
+
+        //Read field management practice input file (fallow periods)
+        //Open file
+        String fileName = location.concat("\\" + fileLocation.fieldMngtFallowFilename);
+        try {
+            //check the file exists
+            new FileReader(fileName);
+        } catch (FileNotFoundException e) {
+            //Can't find text file defining soil parameters
+            System.out.println(e.getMessage());
+            return fieldMngtStruct;
+        }
+
+        //Load data
+        List<String> dataArray = new LinkedList<>();
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(new File(fileName)));
+            String st;
+            while ((st = br.readLine()) != null) {
+                dataArray.add(st);
+            }
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+
+        for (int j = 0; j < dataArray.size(); j++) {
+            String temp = dataArray.get(j).split(",")[1];
+            dataArray.set(j, temp);
+        }
+        dataArray.remove(0);
+
+        fieldMngtStruct[i] = new FieldMngtStruct();
+        fieldMngtStruct[i].Mulches = dataArray.get(0);
+        fieldMngtStruct[i].Bunds = dataArray.get(1);
+        fieldMngtStruct[i].CNadj = dataArray.get(2);
+        fieldMngtStruct[i].SRinhb = dataArray.get(3);
+        fieldMngtStruct[i].MulchPct = Double.parseDouble(dataArray.get(4));
+        fieldMngtStruct[i].fMulch = Double.parseDouble(dataArray.get(5));
+        fieldMngtStruct[i].zBund = Double.parseDouble(dataArray.get(6));
+        fieldMngtStruct[i].BundWater = Double.parseDouble(dataArray.get(7));
+        fieldMngtStruct[i].CNadjPct = Double.parseDouble(dataArray.get(8));
+
+        return fieldMngtStruct;
     }
 
     /**
@@ -225,28 +536,28 @@ public class AOS_Initialize {
         fileLocation.soilProfileFilename = dataArray.get(1).split(",")[1];
         fileLocation.soilTextureFilename = dataArray.get(2).split(",")[1];
         fileLocation.soilHydrologyFilename = dataArray.get(3).split(",")[1];
-        paramStruct.Soil.put("CalcSHP", Double.parseDouble(dataArray.get(4).split(",")[1]));
-        paramStruct.Soil.put("Zsoil", Double.parseDouble(dataArray.get(5).split(",")[1]));
-        paramStruct.Soil.put("nComp", Double.parseDouble(dataArray.get(6).split(",")[1]));
-        paramStruct.Soil.put("nLayer", Double.parseDouble(dataArray.get(7).split(",")[1]));
-        paramStruct.Soil.put("AdjREW", Double.parseDouble(dataArray.get(8).split(",")[1]));
-        paramStruct.Soil.put("REW", Double.parseDouble(dataArray.get(9).split(",")[1]));
-        paramStruct.Soil.put("CN", Double.parseDouble(dataArray.get(10).split(",")[1]));
-        paramStruct.Soil.put("zRes", Double.parseDouble(dataArray.get(11).split(",")[1]));
+        paramStruct.soil.CalcSHP = Double.parseDouble(dataArray.get(4).split(",")[1]);
+        paramStruct.soil.Zsoil = Double.parseDouble(dataArray.get(5).split(",")[1]);
+        paramStruct.soil.nComp = Integer.parseInt(dataArray.get(6).split(",")[1]);
+        paramStruct.soil.nLayer = Double.parseDouble(dataArray.get(7).split(",")[1]);
+        paramStruct.soil.AdjREW = Double.parseDouble(dataArray.get(8).split(",")[1]);
+        paramStruct.soil.REW = Double.parseDouble(dataArray.get(9).split(",")[1]);
+        paramStruct.soil.CN = Double.parseDouble(dataArray.get(10).split(",")[1]);
+        paramStruct.soil.zRes = Double.parseDouble(dataArray.get(11).split(",")[1]);
 
         //Assign default program properties (should not be changed without expert knowledge)
-        paramStruct.Soil.put("EvapZsurf", 0.04);  //Thickness of soil surface skin evaporation layer (m)
-        paramStruct.Soil.put("EvapZmin", 0.15);   //Minimum thickness of full soil surface evaporation layer (m)
-        paramStruct.Soil.put("EvapZmax", 0.30);   //Maximum thickness of full soil surface evaporation layer (m)
-        paramStruct.Soil.put("Kex", 1.1);         //Maximum soil evaporation coefficient
-        paramStruct.Soil.put("fevap", 4.0);         //Shape factor describing reduction in soil evaporation in stage 2.
-        paramStruct.Soil.put("fWrelExp", 0.4);    //Proportional value of Wrel at which soil evaporation layer expands
-        paramStruct.Soil.put("fwcc", 50.0);         //Maximum coefficient for soil evaporation reduction due to sheltering effect of withered canopy
-        paramStruct.Soil.put("zCN", 0.3);         //Thickness of soil surface (m) used to calculate water content to adjust curve number
-        paramStruct.Soil.put("zGerm", 0.3);       //Thickness of soil surface (m) used to calculate water content for germination
-        paramStruct.Soil.put("AdjCN", 1.0);         //Adjust curve number for antecedent moisture content (0: No, 1: Yes)
-        paramStruct.Soil.put("fshape_cr", 16.0);    //Capillary rise shape factor
-        paramStruct.Soil.put("zTop", 0.1);        //Thickness of soil surface layer for water stress comparisons (m)
+        paramStruct.soil.EvapZsurf = 0.04;  //Thickness of soil surface skin evaporation layer (m)
+        paramStruct.soil.EvapZmin = 0.15;   //Minimum thickness of full soil surface evaporation layer (m)
+        paramStruct.soil.EvapZmax = 0.30;   //Maximum thickness of full soil surface evaporation layer (m)
+        paramStruct.soil.Kex = 1.1;         //Maximum soil evaporation coefficient
+        paramStruct.soil.fevap = 4.0;         //Shape factor describing reduction in soil evaporation in stage 2.
+        paramStruct.soil.fWrelExp = 0.4;    //Proportional value of Wrel at which soil evaporation layer expands
+        paramStruct.soil.fwcc = 50.0;         //Maximum coefficient for soil evaporation reduction due to sheltering effect of withered canopy
+        paramStruct.soil.zCN = 0.3;         //Thickness of soil surface (m) used to calculate water content to adjust curve number
+        paramStruct.soil.zGerm = 0.3;       //Thickness of soil surface (m) used to calculate water content for germination
+        paramStruct.soil.AdjCN = 1.0;         //Adjust curve number for antecedent moisture content (0: No, 1: Yes)
+        paramStruct.soil.fshape_cr = 16.0;    //Capillary rise shape factor
+        paramStruct.soil.zTop = 0.1;        //Thickness of soil surface layer for water stress comparisons (m)
 
         //Read soil profile input file
         //Open file
@@ -278,14 +589,14 @@ public class AOS_Initialize {
         for (int i = 1; i < dataArray.size(); i++) {
             dz.add(Double.parseDouble(dataArray.get(i).split(",")[1]));
         }
-        paramStruct.Comp.put("dz", dz.toArray(new Double[dz.size()]));
-        Double[] dzsum = div(100, round(dot(100.0, cumsum(paramStruct.Comp.get("dz")))));
-        paramStruct.Comp.put("dzsum", dzsum);
+        paramStruct.soil.comp.dz = dz.toArray(new Double[dz.size()]);
+        Double[] dzsum = div(100, round(dot(100.0, cumsum(paramStruct.soil.comp.dz))));
+        paramStruct.soil.comp.dzsum = dzsum;
         ArrayList<Double> Layer = new ArrayList<>();
         for (int i = 1; i < dataArray.size(); i++) {
             Layer.add(Double.parseDouble(dataArray.get(i).split(",")[2]));
         }
-        paramStruct.Comp.put("Layer", Layer.toArray(new Double[Layer.size()]));
+        paramStruct.soil.comp.layer = Layer.toArray(new Double[Layer.size()]);
 
         //Read crop mix input file
         //Open file
@@ -322,6 +633,9 @@ public class AOS_Initialize {
 
         //Read crop parameter input files
         //Create blank structure
+
+        //create crop parameter structure
+        paramStruct.crop = new Crop[nCrops];
 
         //Loop crop types
         for (int i = 0; i < nCrops; i++) {
@@ -361,87 +675,87 @@ public class AOS_Initialize {
             String[] DataArray = temp.toArray(new String[temp.size()]);
 
             //Create crop parameter structure
-            paramStruct.crop = new Crop();
-            paramStruct.crop.Emergence = Double.parseDouble(DataArray[0]);
-            paramStruct.crop.MaxRooting = Double.parseDouble(DataArray[1]);
-            paramStruct.crop.Senescence = Double.parseDouble(DataArray[2]);
-            paramStruct.crop.Maturity = Double.parseDouble(DataArray[3]);
-            paramStruct.crop.HIstart = Double.parseDouble(DataArray[4]);
-            paramStruct.crop.Flowering = Double.parseDouble(DataArray[5]);
-            paramStruct.crop.YldForm = Double.parseDouble(DataArray[6]);
-            paramStruct.crop.GDDmethod = Double.parseDouble(DataArray[7]);
-            paramStruct.crop.Tbase = Double.parseDouble(DataArray[8]);
-            paramStruct.crop.Tupp = Double.parseDouble(DataArray[9]);
-            paramStruct.crop.PolHeatStress = Double.parseDouble(DataArray[10]);
-            paramStruct.crop.Tmax_up = Double.parseDouble(DataArray[11]);
-            paramStruct.crop.Tmax_lo = Double.parseDouble(DataArray[12]);
-            paramStruct.crop.PolColdStress = Double.parseDouble(DataArray[13]);
-            paramStruct.crop.Tmin_up = Double.parseDouble(DataArray[14]);
-            paramStruct.crop.Tmin_lo = Double.parseDouble(DataArray[15]);
-            paramStruct.crop.TrColdStress = Double.parseDouble(DataArray[16]);
-            paramStruct.crop.GDD_up = Double.parseDouble(DataArray[17]);
-            paramStruct.crop.GDD_lo = Double.parseDouble(DataArray[18]);
-            paramStruct.crop.Zmin = Double.parseDouble(DataArray[19]);
-            paramStruct.crop.Zmax = Double.parseDouble(DataArray[20]);
-            paramStruct.crop.fshape_r = Double.parseDouble(DataArray[21]);
-            paramStruct.crop.SxTopQ = Double.parseDouble(DataArray[22]);
-            paramStruct.crop.SxBotQ = Double.parseDouble(DataArray[23]);
-            paramStruct.crop.SeedSize = Double.parseDouble(DataArray[24]);
-            paramStruct.crop.PlantPop = Double.parseDouble(DataArray[25]);
-            paramStruct.crop.CCx = Double.parseDouble(DataArray[26]);
-            paramStruct.crop.CDC = Double.parseDouble(DataArray[27]);
-            paramStruct.crop.CGC = Double.parseDouble(DataArray[28]);
-            paramStruct.crop.Kcb = Double.parseDouble(DataArray[29]);
-            paramStruct.crop.fage = Double.parseDouble(DataArray[30]);
-            paramStruct.crop.WP = Double.parseDouble(DataArray[31]);
-            paramStruct.crop.WPy = Double.parseDouble(DataArray[32]);
-            paramStruct.crop.fsink = Double.parseDouble(DataArray[33]);
-            paramStruct.crop.HI0 = Double.parseDouble(DataArray[34]);
-            paramStruct.crop.dHI_pre = Double.parseDouble(DataArray[35]);
-            paramStruct.crop.a_HI = Double.parseDouble(DataArray[36]);
-            paramStruct.crop.b_HI = Double.parseDouble(DataArray[37]);
-            paramStruct.crop.dHI0 = Double.parseDouble(DataArray[38]);
-            paramStruct.crop.Determinant = Double.parseDouble(DataArray[39]);
-            paramStruct.crop.exc = Double.parseDouble(DataArray[40]);
-            paramStruct.crop.p_up1 = Double.parseDouble(DataArray[41]);
-            paramStruct.crop.p_up2 = Double.parseDouble(DataArray[42]);
-            paramStruct.crop.p_up3 = Double.parseDouble(DataArray[43]);
-            paramStruct.crop.p_up4 = Double.parseDouble(DataArray[44]);
-            paramStruct.crop.p_lo1 = Double.parseDouble(DataArray[45]);
-            paramStruct.crop.p_lo2 = Double.parseDouble(DataArray[46]);
-            paramStruct.crop.p_lo3 = Double.parseDouble(DataArray[47]);
-            paramStruct.crop.p_lo4 = Double.parseDouble(DataArray[48]);
-            paramStruct.crop.fshape_w1 = Double.parseDouble(DataArray[49]);
-            paramStruct.crop.fshape_w2 = Double.parseDouble(DataArray[50]);
-            paramStruct.crop.fshape_w3 = Double.parseDouble(DataArray[51]);
-            paramStruct.crop.fshape_w4 = Double.parseDouble(DataArray[52]);
+            paramStruct.crop[i] = new Crop();
+            paramStruct.crop[i].Emergence = Double.parseDouble(DataArray[0]);
+            paramStruct.crop[i].MaxRooting = Double.parseDouble(DataArray[1]);
+            paramStruct.crop[i].Senescence = Double.parseDouble(DataArray[2]);
+            paramStruct.crop[i].Maturity = Double.parseDouble(DataArray[3]);
+            paramStruct.crop[i].HIstart = Double.parseDouble(DataArray[4]);
+            paramStruct.crop[i].Flowering = Double.parseDouble(DataArray[5]);
+            paramStruct.crop[i].YldForm = Double.parseDouble(DataArray[6]);
+            paramStruct.crop[i].GDDmethod = Double.parseDouble(DataArray[7]);
+            paramStruct.crop[i].Tbase = Double.parseDouble(DataArray[8]);
+            paramStruct.crop[i].Tupp = Double.parseDouble(DataArray[9]);
+            paramStruct.crop[i].PolHeatStress = Double.parseDouble(DataArray[10]);
+            paramStruct.crop[i].Tmax_up = Double.parseDouble(DataArray[11]);
+            paramStruct.crop[i].Tmax_lo = Double.parseDouble(DataArray[12]);
+            paramStruct.crop[i].PolColdStress = Double.parseDouble(DataArray[13]);
+            paramStruct.crop[i].Tmin_up = Double.parseDouble(DataArray[14]);
+            paramStruct.crop[i].Tmin_lo = Double.parseDouble(DataArray[15]);
+            paramStruct.crop[i].TrColdStress = Double.parseDouble(DataArray[16]);
+            paramStruct.crop[i].GDD_up = Double.parseDouble(DataArray[17]);
+            paramStruct.crop[i].GDD_lo = Double.parseDouble(DataArray[18]);
+            paramStruct.crop[i].Zmin = Double.parseDouble(DataArray[19]);
+            paramStruct.crop[i].Zmax = Double.parseDouble(DataArray[20]);
+            paramStruct.crop[i].fshape_r = Double.parseDouble(DataArray[21]);
+            paramStruct.crop[i].SxTopQ = Double.parseDouble(DataArray[22]);
+            paramStruct.crop[i].SxBotQ = Double.parseDouble(DataArray[23]);
+            paramStruct.crop[i].SeedSize = Double.parseDouble(DataArray[24]);
+            paramStruct.crop[i].PlantPop = Double.parseDouble(DataArray[25]);
+            paramStruct.crop[i].CCx = Double.parseDouble(DataArray[26]);
+            paramStruct.crop[i].CDC = Double.parseDouble(DataArray[27]);
+            paramStruct.crop[i].CGC = Double.parseDouble(DataArray[28]);
+            paramStruct.crop[i].Kcb = Double.parseDouble(DataArray[29]);
+            paramStruct.crop[i].fage = Double.parseDouble(DataArray[30]);
+            paramStruct.crop[i].WP = Double.parseDouble(DataArray[31]);
+            paramStruct.crop[i].WPy = Double.parseDouble(DataArray[32]);
+            paramStruct.crop[i].fsink = Double.parseDouble(DataArray[33]);
+            paramStruct.crop[i].HI0 = Double.parseDouble(DataArray[34]);
+            paramStruct.crop[i].dHI_pre = Double.parseDouble(DataArray[35]);
+            paramStruct.crop[i].a_HI = Double.parseDouble(DataArray[36]);
+            paramStruct.crop[i].b_HI = Double.parseDouble(DataArray[37]);
+            paramStruct.crop[i].dHI0 = Double.parseDouble(DataArray[38]);
+            paramStruct.crop[i].Determinant = Double.parseDouble(DataArray[39]);
+            paramStruct.crop[i].exc = Double.parseDouble(DataArray[40]);
+            paramStruct.crop[i].p_up1 = Double.parseDouble(DataArray[41]);
+            paramStruct.crop[i].p_up2 = Double.parseDouble(DataArray[42]);
+            paramStruct.crop[i].p_up3 = Double.parseDouble(DataArray[43]);
+            paramStruct.crop[i].p_up4 = Double.parseDouble(DataArray[44]);
+            paramStruct.crop[i].p_lo1 = Double.parseDouble(DataArray[45]);
+            paramStruct.crop[i].p_lo2 = Double.parseDouble(DataArray[46]);
+            paramStruct.crop[i].p_lo3 = Double.parseDouble(DataArray[47]);
+            paramStruct.crop[i].p_lo4 = Double.parseDouble(DataArray[48]);
+            paramStruct.crop[i].fshape_w1 = Double.parseDouble(DataArray[49]);
+            paramStruct.crop[i].fshape_w2 = Double.parseDouble(DataArray[50]);
+            paramStruct.crop[i].fshape_w3 = Double.parseDouble(DataArray[51]);
+            paramStruct.crop[i].fshape_w4 = Double.parseDouble(DataArray[52]);
 
             //Add additional parameters
-            paramStruct.crop.CropType = Double.parseDouble(CropType);
-            paramStruct.crop.PlantMethod = Double.parseDouble(PlantMethod);
-            paramStruct.crop.CalendarType = Double.parseDouble(CalendarType);
-            paramStruct.crop.SwitchGDD = Double.parseDouble(SwitchGDD);
-            paramStruct.crop.PlantingDate = PlantingDateStr;
-            paramStruct.crop.HarvestDate = HarvestDateStr;
+            paramStruct.crop[i].CropType = Double.parseDouble(CropType);
+            paramStruct.crop[i].PlantMethod = Double.parseDouble(PlantMethod);
+            paramStruct.crop[i].CalendarType = Double.parseDouble(CalendarType);
+            paramStruct.crop[i].SwitchGDD = Double.parseDouble(SwitchGDD);
+            paramStruct.crop[i].PlantingDate = PlantingDateStr;
+            paramStruct.crop[i].HarvestDate = HarvestDateStr;
             //Add irrigation management information
-            paramStruct.crop.IrrigationFile = CropInfo[2];
-            paramStruct.crop.FieldMngtFile = CropInfo[3];
+            paramStruct.crop[i].IrrigationFile = CropInfo[2];
+            paramStruct.crop[i].FieldMngtFile = CropInfo[3];
             //Assign default program properties (should not be changed without expert knowledge)
-            paramStruct.crop.fshape_b = 13.8135; //Shape factor describing the reduction in biomass production for insufficient growing degree days
-            paramStruct.crop.PctZmin = 70; //Initial percentage of minimum effective rooting depth
-            paramStruct.crop.fshape_ex = -6; //Shape factor describing the effects of water stress on root expansion
-            paramStruct.crop.ETadj = 1; //Adjustment to water stress thresholds depending on daily ET0 (0 = No, 1 = Yes)
-            paramStruct.crop.Aer = 5; //Vol (%) below saturation at which stress begins to occur due to deficient aeration
-            paramStruct.crop.LagAer = 3; //Number of days lag before aeration stress affects crop growth
-            paramStruct.crop.beta = 12; //Reduction (%) to p_lo3 when early canopy senescence is triggered
-            paramStruct.crop.a_Tr = 1; //Exponent parameter for adjustment of Kcx once senescence is triggered
-            paramStruct.crop.GermThr = 0.2; //Proportion of total water storage needed for crop to germinate
-            paramStruct.crop.CCmin = 0.05; //Minimum canopy size below which yield formation cannot occur
-            paramStruct.crop.MaxFlowPct = 100 / 3; //Proportion of total flowering time (%) at which peak flowering occurs
-            paramStruct.crop.HIini = 0.01; //Initial harvest index
-            paramStruct.crop.bsted = 0.000138; //WP co2 adjustment parameter given by Steduto et al. 2007
-            paramStruct.crop.bface = 0.001165; //WP co2 adjustment parameter given by FACE experiments
-            paramStruct.crop.fsink /= 100; //Convert from %
+            paramStruct.crop[i].fshape_b = 13.8135; //Shape factor describing the reduction in biomass production for insufficient growing degree days
+            paramStruct.crop[i].PctZmin = 70; //Initial percentage of minimum effective rooting depth
+            paramStruct.crop[i].fshape_ex = -6; //Shape factor describing the effects of water stress on root expansion
+            paramStruct.crop[i].ETadj = 1; //Adjustment to water stress thresholds depending on daily ET0 (0 = No, 1 = Yes)
+            paramStruct.crop[i].Aer = 5; //Vol (%) below saturation at which stress begins to occur due to deficient aeration
+            paramStruct.crop[i].LagAer = 3; //Number of days lag before aeration stress affects crop growth
+            paramStruct.crop[i].beta = 12; //Reduction (%) to p_lo3 when early canopy senescence is triggered
+            paramStruct.crop[i].a_Tr = 1; //Exponent parameter for adjustment of Kcx once senescence is triggered
+            paramStruct.crop[i].GermThr = 0.2; //Proportion of total water storage needed for crop to germinate
+            paramStruct.crop[i].CCmin = 0.05; //Minimum canopy size below which yield formation cannot occur
+            paramStruct.crop[i].MaxFlowPct = 100 / 3; //Proportion of total flowering time (%) at which peak flowering occurs
+            paramStruct.crop[i].HIini = 0.01; //Initial harvest index
+            paramStruct.crop[i].bsted = 0.000138; //WP co2 adjustment parameter given by Steduto et al. 2007
+            paramStruct.crop[i].bface = 0.001165; //WP co2 adjustment parameter given by FACE experiments
+            paramStruct.crop[i].fsink /= 100; //Convert from %
         }
 
         //Find planting and harvest dates
@@ -483,10 +797,10 @@ public class AOS_Initialize {
             split = clockStruct.SimulationEndTime.split("-");
             String[] SimEndDate = {split[0], split[1], split[2]};
             //Get temporary crop structure
-            Crop CropTemp = paramStruct.crop;
+            Crop CropTemp = paramStruct.crop[0];
             //Does growing season extend across multiple calendar years
-            int[] PlantDatesSplit = {Integer.parseInt(CropTemp.PlantingDate.split("-")[0]), Integer.parseInt(CropTemp.PlantingDate.split("-")[1])};
-            int[] HarvestDateSplit = {Integer.parseInt(CropTemp.HarvestDate.split("-")[0]), Integer.parseInt(CropTemp.HarvestDate.split("-")[0])};
+            int[] PlantDatesSplit = {Integer.parseInt(CropTemp.PlantingDate.split("/")[0]), Integer.parseInt(CropTemp.PlantingDate.split("/")[1])};
+            int[] HarvestDateSplit = {Integer.parseInt(CropTemp.HarvestDate.split("/")[0]), Integer.parseInt(CropTemp.HarvestDate.split("/")[1])};
             if (PlantDatesSplit[1] < HarvestDateSplit[1] || (PlantDatesSplit[1] == HarvestDateSplit[1] && PlantDatesSplit[0] < HarvestDateSplit[0])) {
                 ArrayList<String> YrsPlantTemp = new ArrayList<>();
                 for (int i = Integer.parseInt(SimStaDate[0]); i <= Integer.parseInt(SimEndDate[0]); i++) {
@@ -495,27 +809,27 @@ public class AOS_Initialize {
                 String[] YrsPlant = YrsPlantTemp.toArray(new String[YrsPlantTemp.size()]);
                 String[] YrsHarvest = YrsPlant.clone();
             } else {
-//                    YrsPlant = SimStaDate(1):SimEndDate(1) - 1;
-//                    YrsHarvest = SimStaDate(1) + 1:SimEndDate(1);
+//                YrsPlant = SimStaDate(1):SimEndDate(1) - 1;
+//                YrsHarvest = SimStaDate(1) + 1:SimEndDate(1);
             }
-            //Correct for partial first growing season (may occur when simulating
-            //off-season soil water balance)
+//            Correct for partial first growing season (may occur when simulating
+//            off-season soil water balance)
 //            if (datenum(strcat(CropTemp.PlantingDate, '/', num2str(YrsPlant(1))), 'dd/mm/yyyy') < clockStruct.SimulationStartDate) {
-////                    YrsPlant = YrsPlant(2:end);
-////                    YrsHarvest = YrsHarvest(2:end);
+//                    YrsPlant = YrsPlant(2:end);
+//                    YrsHarvest = YrsHarvest(2:end);
 //            }
-//            //Define blank variables
+            //Define blank variables
 //            PlantDates = zeros(length(YrsPlant), 1);
-////                HarvestDates = zeros(length(YrsHarvest), 1);
-//            Crop CropChoices;
-//            //Determine planting and harvest dates
+//            HarvestDates = zeros(length(YrsHarvest), 1);
+            Crop CropChoices;
+            //Determine planting and harvest dates
 //            for (int ii = 0; ii < YrsPlant; ii++) {
-////                    PlantDates(ii) = datenum(strcat(CropTemp.PlantingDate, '/', num2str(YrsPlant(ii))), 'dd/mm/yyyy');
-////                    HarvestDates(ii) = datenum(strcat(CropTemp.HarvestDate, '/', num2str(YrsHarvest(ii))), 'dd/mm/yyyy');
+//                    PlantDates(ii) = datenum(strcat(CropTemp.PlantingDate, '/', num2str(YrsPlant(ii))), 'dd/mm/yyyy');
+//                    HarvestDates(ii) = datenum(strcat(CropTemp.HarvestDate, '/', num2str(YrsHarvest(ii))), 'dd/mm/yyyy');
 //                //TODO check it
 //                CropChoices = paramStruct.crop;
 //            }
-//        }
+        }
 //        //Update clock parameters %%
 //        //Store planting and harvest dates
 //        clockStruct.PlantingDate = PlantDates;
@@ -527,81 +841,97 @@ public class AOS_Initialize {
 //        } else {
 //            clockStruct.SeasonCounter = 0;
 //        }
-
-            return paramStruct;
-        }
-
-        public void AOS_ReadIrrigationManagement (FileLocation fileLocation, ParamStruct paramStruct){
-            //Read AOS input file location %%
-            String location = fileLocation.input;
-
-            //Read irrigation management input files %%
-            //Check for number of crop types
-            Crop a = new Crop();
-            Field[] crop = a.getDeclaredFields();
-            int nCrops = crop.length;
-            //Create blank structure
-            IrrMngtStruct irrMngtStruct = new IrrMngtStruct();
-
-            for (int ii = 0; ii < nCrops; ii++) {
-                //Open file
-                String fileName = location.concat(paramStruct.crop.IrrigationFile);
-                try {
-                    //check the file exists
-                    new FileReader(fileName);
-                } catch (FileNotFoundException e) {
-                    //Can't find text file defining locations of input and output folders.
-                    System.out.println(e.getMessage());
-                    return;
-                }
-
-                //Load data
-                List<String> dataArray = new LinkedList<>();
-                try {
-                    BufferedReader br = new BufferedReader(new FileReader(new File(fileName)));
-                    String st;
-                    while ((st = br.readLine()) != null) {
-                        dataArray.add(st);
-                    }
-                } catch (IOException e) {
-                    System.out.println(e.getMessage());
-                }
-            }
-        }
-
-        //array operators
-        private Double[] cumsum (Double[]in){
-            Double[] out = new Double[in.length];
-            Double total = 0.0;
-            for (int i = 0; i < in.length; i++) {
-                total += in[i];
-                out[i] = total;
-            }
-            return out;
-        }
-
-        private Double[] dot (Double num, Double[]array){
-            Double[] newArray = new Double[array.length];
-            for (int i = 0; i < array.length; i++) {
-                newArray[i] = num * array[i];
-            }
-            return newArray;
-        }
-
-        private Double[] round (Double[]array){
-            Double[] newArray = new Double[array.length];
-            for (int i = 0; i < array.length; i++) {
-                Long temp = Math.round(array[i]);
-                newArray[i] = temp.doubleValue();
-            }
-            return newArray;
-        }
-
-        private Double[] div ( double num, Double[] array){
-            Double[] newArray = new Double[array.length];
-            for (int i = 0; i < array.length; i++) {
-                newArray[i] = array[i] / num;
-            }
-            return newArray;
-        }
+        return paramStruct;
     }
+
+    public IrrMngtStruct AOS_ReadIrrigationManagement(FileLocation fileLocation, ParamStruct paramStruct) {
+        //Read AOS input file location %%
+        String location = fileLocation.input;
+
+        //Read irrigation management input files %%
+        //Check for number of crop types
+        Crop a = new Crop();
+        Field[] crop = a.getDeclaredFields();
+        int nCrops = crop.length;
+        //Create blank structure
+        IrrMngtStruct irrMngtStruct = new IrrMngtStruct();
+
+        for (int ii = 0; ii < nCrops; ii++) {
+            //Open file
+            String fileName = location.concat("\\" + paramStruct.crop[ii].IrrigationFile);
+            try {
+                //check the file exists
+                new FileReader(fileName);
+            } catch (FileNotFoundException e) {
+                //Can't find text file defining locations of input and output folders.
+                System.out.println(e.getMessage());
+                return irrMngtStruct;
+            }
+
+            //Load data
+            List<String> dataArray = new LinkedList<>();
+            try {
+                BufferedReader br = new BufferedReader(new FileReader(new File(fileName)));
+                String st;
+                while ((st = br.readLine()) != null) {
+                    dataArray.add(st);
+                }
+            } catch (IOException e) {
+                System.out.println(e.getMessage());
+            }
+
+            //Create and assign numeric variables
+            irrMngtStruct.IrrMethod = Integer.parseInt(dataArray.get(2).split(",")[1]);
+            irrMngtStruct.IrrInterval = Integer.parseInt(dataArray.get(3).split(",")[1]);
+            irrMngtStruct.SMT1 = Integer.parseInt(dataArray.get(4).split(",")[1]);
+            irrMngtStruct.SMT2 = Integer.parseInt(dataArray.get(5).split(",")[1]);
+            irrMngtStruct.SMT3 = Integer.parseInt(dataArray.get(6).split(",")[1]);
+            irrMngtStruct.SMT4 = Integer.parseInt(dataArray.get(7).split(",")[1]);
+            irrMngtStruct.MaxIrr = Integer.parseInt(dataArray.get(8).split(",")[1]);
+            irrMngtStruct.AppEff = Integer.parseInt(dataArray.get(9).split(",")[1]);
+            irrMngtStruct.NetIrrSMT = Integer.parseInt(dataArray.get(10).split(",")[1]);
+            irrMngtStruct.WetSurf = Integer.parseInt(dataArray.get(11).split(",")[1]);
+
+            if (irrMngtStruct.IrrMethod == 3) {
+                //TODO
+            }
+        }
+        return irrMngtStruct;
+    }
+
+    //array operators
+    private Double[] cumsum(Double[] in) {
+        Double[] out = new Double[in.length];
+        Double total = 0.0;
+        for (int i = 0; i < in.length; i++) {
+            total += in[i];
+            out[i] = total;
+        }
+        return out;
+    }
+
+    private Double[] dot(Double num, Double[] array) {
+        Double[] newArray = new Double[array.length];
+        for (int i = 0; i < array.length; i++) {
+            newArray[i] = num * array[i];
+        }
+        return newArray;
+    }
+
+    private Double[] round(Double[] array) {
+        Double[] newArray = new Double[array.length];
+        for (int i = 0; i < array.length; i++) {
+            Long temp = Math.round(array[i]);
+            newArray[i] = temp.doubleValue();
+        }
+        return newArray;
+    }
+
+    private Double[] div(double num, Double[] array) {
+        Double[] newArray = new Double[array.length];
+        for (int i = 0; i < array.length; i++) {
+            newArray[i] = array[i] / num;
+        }
+        return newArray;
+    }
+}
