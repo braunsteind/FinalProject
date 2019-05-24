@@ -13,7 +13,7 @@ public class FileLocation {
     public String fieldMngtFallowFilename;
     public String initialWCFilename;
     public String groundwaterFilename;
-    public String cO2Filename;
+    public String CO2Filename;
     public String outputFilename;
     public String writeDaily;
 }

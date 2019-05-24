@@ -1,8 +1,9 @@
 import Structs.*;
 
 import java.io.*;
-import java.lang.reflect.Field;
 import java.sql.Date;
+import java.text.DecimalFormat;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -20,13 +21,134 @@ public class AOS_Initialize {
         IrrMngtStruct irrMngtStruct = AOS_ReadIrrigationManagement(fileLocation, paramStruct);
         FieldMngtStruct[] fieldMngtStruct = AOS_ReadFieldManagement(fileLocation, paramStruct);
         GwStruct gwStruct = AOS_ReadGroundwaterTable(fileLocation);
-        AOS_ComputeVariables(paramStruct, WeatherStruct, clockStruct, gwStruct, fileLocation);
+        paramStruct = AOS_ComputeVariables(paramStruct, WeatherStruct, clockStruct, gwStruct, fileLocation);
+
+        //Define initial conditions
+        InitCondStruct initCondStruct = AOS_ReadModelInitialConditions(paramStruct, gwStruct, fieldMngtStruct, fileLocation);
+
+        //Pack output structure
+        AOS_InitialiseStruct AOS_InitialiseStruct = new AOS_InitialiseStruct();
+        AOS_InitialiseStruct.Parameter = paramStruct;
+        AOS_InitialiseStruct.IrrigationManagement = irrMngtStruct;
+        AOS_InitialiseStruct.FieldManagement = fieldMngtStruct;
+        AOS_InitialiseStruct.Groundwater = gwStruct;
+        AOS_InitialiseStruct.InitialCondition = initCondStruct;
+        AOS_InitialiseStruct.CropChoices = paramStruct.crop;
+        AOS_InitialiseStruct.Weather = WeatherStruct;
+        AOS_InitialiseStruct.FileLocation = fileLocation;
+
+        //Setup output files
+        //Define output file location
+        String FileLoc = fileLocation.output + "\\";
+        //Setup blank matrices to store outputs
+        AOS_InitialiseStruct.Outputs.WaterContents = new int[clockStruct.TimeSpan.length][5 + paramStruct.soil.nComp];
+        for (int i = 0; i < clockStruct.TimeSpan.length; i++) {
+            for (int j = 3; j < 5 + paramStruct.soil.nComp; j++) {
+                if (j == 4) {
+                    continue;
+                }
+                AOS_InitialiseStruct.Outputs.WaterContents[i][j] = -999;
+            }
+        }
+        AOS_InitialiseStruct.Outputs.WaterFluxes = new int[clockStruct.TimeSpan.length][18];
+        for (int i = 0; i < clockStruct.TimeSpan.length; i++) {
+            for (int j = 3; j < 18; j++) {
+                if (j == 4) {
+                    continue;
+                }
+                AOS_InitialiseStruct.Outputs.WaterFluxes[i][j] = -999;
+            }
+        }
+        AOS_InitialiseStruct.Outputs.CropGrowth = new int[clockStruct.TimeSpan.length][15];
+        for (int i = 0; i < clockStruct.TimeSpan.length; i++) {
+            for (int j = 3; j < 15; j++) {
+                if (j == 4) {
+                    continue;
+                }
+                AOS_InitialiseStruct.Outputs.CropGrowth[i][j] = -999;
+            }
+        }
+        AOS_InitialiseStruct.Outputs.FinalOutput = new int[clockStruct.nSeasons][8];
+
+        //Store dates in daily matrices
+        String s = clockStruct.SimulationStartTime;
+        String e = clockStruct.SimulationEndTime;
+        LocalDate start = LocalDate.parse(s);
+        LocalDate end = LocalDate.parse(e);
+        int i = 0;
+        while (!start.isAfter(end)) {
+            String[] split = start.toString().split("-");
+            for (int j = 0; j < 3; j++) {
+                AOS_InitialiseStruct.Outputs.WaterContents[i][j] = Integer.parseInt(split[j]);
+                AOS_InitialiseStruct.Outputs.WaterFluxes[i][j] = Integer.parseInt(split[j]);
+                AOS_InitialiseStruct.Outputs.CropGrowth[i][j] = Integer.parseInt(split[j]);
+            }
+            start = start.plusDays(1);
+            i++;
+        }
+
+        if (AOS_InitialiseStruct.FileLocation.writeDaily.compareTo("Y") == 0) {
+            //Water contents (daily)
+            String[] names = new String[paramStruct.soil.nComp];
+            DecimalFormat df = new DecimalFormat("#.###");
+            for (int ii = 0; ii < paramStruct.soil.nComp; ii++) {
+                double z = paramStruct.soil.comp.dzsum[ii] - (paramStruct.soil.comp.dz[ii] / 2);
+                z = Double.parseDouble(df.format(z));
+                names[ii] = String.valueOf(z).concat("m");
+            }
+
+            String path = FileLoc.concat(fileLocation.outputFilename + "_WaterContents.csv");
+            String[] cHeader = new String[5 + names.length];
+            cHeader[0] = "Year";
+            cHeader[1] = ",Month";
+            cHeader[2] = ",Day";
+            cHeader[3] = ",SimDay";
+            cHeader[4] = ",Season";
+            for (i = 0; i < names.length; i++) {
+                cHeader[i + 5] = "," + names[i];
+            }
+            write(path, cHeader);
+
+            //Hydrological fluxes (daily)
+            path = FileLoc.concat(fileLocation.outputFilename + "_WaterFluxes.csv");
+            write(path, new String[]{"Year,Month,Day,SimDay,Season,wRZ,zGW,wSurf,Irr,Infl,RO,DP,CR,GWin,Es,EsX,Tr,TrX"});
+
+            //Crop growth (daily)
+            path = FileLoc.concat(fileLocation.outputFilename + "CropGrowth.csv");
+            write(path, new String[]{"Year,Month,Day,SimDay,Season,GDD,TotGDD,Zr,CC,CCPot,Bio,BioPot,HI,HIadj,Yield"});
+        }
+
+        //Final output (at end of each growing season)
+        String path = FileLoc.concat(fileLocation.outputFilename + "_FinalOutput.csv");
+        write(path, new String[]{"Season,CropType,PlantDate,PlantSimDate,HarvestDate,HarvestSimDate,Yield,TotIrr"});
+    }
+
+    private void write(String path, String[] text) {
+        File file = new File(path);
+        file.getParentFile().mkdirs();
+        BufferedWriter writer;
+        try {
+            writer = new BufferedWriter(new FileWriter(path));
+            for (String s : text) {
+                writer.write(s);
+            }
+            writer.close();
+        } catch (IOException e1) {
+            e1.printStackTrace();
+        }
+    }
+
+    public InitCondStruct AOS_ReadModelInitialConditions(ParamStruct paramStruct, GwStruct
+            gwStruct, FieldMngtStruct[] fieldMngtStruct, FileLocation fileLocation) {
+        //TODO
+        return null;
     }
 
     /**
      * Function to compute additional variables needed to run AOS
      */
-    public ParamStruct AOS_ComputeVariables(ParamStruct paramStruct, double[][] WeatherStruct, ClockStruct clockStruct, GwStruct gwStruct, FileLocation fileLocation) {
+    public ParamStruct AOS_ComputeVariables(ParamStruct paramStruct, double[][] WeatherStruct, ClockStruct
+            clockStruct, GwStruct gwStruct, FileLocation fileLocation) {
         //Compute water contents and saturated hydraulic conductivity
         if (paramStruct.soil.CalcSHP == 0) {
             //Read soil texture file
@@ -150,7 +272,8 @@ public class AOS_Initialize {
             }
 
             //Crop calendar
-            paramStruct.crop[i] = AOS_ComputeCropCalendar(paramStruct.crop[i], WeatherStruct);
+            //TODO
+//            paramStruct.crop[i] = AOS_ComputeCropCalendar(paramStruct.crop[i], WeatherStruct);
 
             //Harvest index growth coefficient
             //TODO
@@ -172,7 +295,94 @@ public class AOS_Initialize {
 
         //Calculate WP adjustment factor for elevation in CO2 concentration
         //Load CO2 data
-        //TODO
+        String fileName = fileLocation.input.concat("\\" + fileLocation.CO2Filename);
+
+        try {
+            //check the file exists
+            new FileReader(fileName);
+        } catch (FileNotFoundException e) {
+            //Can't find text file defining CO2 concentrations
+            System.out.println(e.getMessage());
+            return paramStruct;
+        }
+
+        //Load data
+        List<String> dataArray = new LinkedList<>();
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(new File(fileName)));
+            String st;
+            while ((st = br.readLine()) != null) {
+                dataArray.add(st);
+            }
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+
+        int[] Yrs = new int[dataArray.size() - 1];
+        double[] CO2 = new double[dataArray.size() - 1];
+        for (int i = 1; i < dataArray.size(); i++) {
+            String[] split = dataArray.get(i).split(",");
+            //Years
+            Yrs[i - 1] = Integer.parseInt(split[0]);
+            //CO2 concentrations (ppm)
+            CO2[i - 1] = Double.parseDouble(split[1]);
+        }
+
+        List<Integer> YrsVec = new LinkedList<>();
+        for (int i = Integer.parseInt(clockStruct.SimulationStartTime.split("-")[0]); i <= Integer.parseInt(clockStruct.SimulationEndTime.split("-")[0]); i++) {
+            YrsVec.add(i);
+        }
+
+        //Store data
+        paramStruct.CO2.Data = new Data[YrsVec.size()];
+        for (int i = 0; i < YrsVec.size(); i++) {
+            double CO2conc = 0.0;
+            //TODO interp1
+//            CO2conc = interp1(Yrs, CO2, YrsVec);
+            paramStruct.CO2.Data[i] = new Data(YrsVec.get(i), CO2conc);
+        }
+
+        //Define reference CO2 concentration
+        paramStruct.CO2.RefConc = 369.41;
+
+        //Get CO2 concentration for first year
+        paramStruct.CO2.CurrentConc = paramStruct.CO2.Data[0].value;
+
+        //Get CO2 weighting factor for first year
+        double CO2ref = paramStruct.CO2.RefConc;
+        double CO2conc = paramStruct.CO2.CurrentConc;
+
+        double fw, ftype;
+        if (CO2conc <= CO2ref) {
+            fw = 0;
+        } else {
+            if (CO2conc >= 550) {
+                fw = 1;
+            } else {
+                fw = 1 - ((550 - CO2conc) / (550 - CO2ref));
+            }
+        }
+
+        //Determine adjustment for each crop in first year of simulation
+        for (int i = 0; i < nCrops; i++) {
+            //Determine initial adjustment
+            double fCO2 = (CO2conc / CO2ref) / (1 + (CO2conc - CO2ref) * ((1 - fw) *
+                    paramStruct.crop[i].bsted + fw * ((paramStruct.crop[i].bsted *
+                    paramStruct.crop[i].fsink) + (paramStruct.crop[i].bface *
+                    (1 - paramStruct.crop[i].fsink)))));
+            //Consider crop type
+            if (paramStruct.crop[i].WP >= 40) {
+                //No correction for C4 crops
+                ftype = 0;
+            } else if (paramStruct.crop[i].WP <= 20) {
+                //Full correction for C3 crops
+                ftype = 1;
+            } else {
+                ftype = (40 - paramStruct.crop[i].WP) / (40 - 20);
+            }
+            //Total adjustment
+            paramStruct.crop[i].fCO2 = 1 + ftype * (fCO2 - 1);
+        }
 
         return paramStruct;
     }
@@ -427,7 +637,7 @@ public class AOS_Initialize {
         fileLocation.fieldMngtFallowFilename = dataArray.get(5).split(",")[1];
         fileLocation.initialWCFilename = dataArray.get(6).split(",")[1];
         fileLocation.groundwaterFilename = dataArray.get(7).split(",")[1];
-        fileLocation.cO2Filename = dataArray.get(8).split(",")[1];
+        fileLocation.CO2Filename = dataArray.get(8).split(",")[1];
         fileLocation.outputFilename = dataArray.get(9).split(",")[1];
         fileLocation.writeDaily = dataArray.get(10).split(",")[1];
 
@@ -850,9 +1060,7 @@ public class AOS_Initialize {
 
         //Read irrigation management input files %%
         //Check for number of crop types
-        Crop a = new Crop();
-        Field[] crop = a.getDeclaredFields();
-        int nCrops = crop.length;
+        int nCrops = paramStruct.crop.length;
         //Create blank structure
         IrrMngtStruct irrMngtStruct = new IrrMngtStruct();
 
