@@ -12,10 +12,12 @@ public class AOS_Initialize {
 
     public static final int MILLISECONDS_IN_DAY = 86400000;
     public static final int DATE_ADD = 719530;
+    public ClockStruct clockStruct;
+    public AOS_InitialiseStruct AOS_InitialiseStruct;
 
     public AOS_Initialize() {
         FileLocation fileLocation = AOS_ReadFileLocations();
-        ClockStruct clockStruct = AOS_ReadClockParameters(fileLocation);
+        clockStruct = AOS_ReadClockParameters(fileLocation);
         double[][] WeatherStruct = AOS_ReadWeatherInputs(fileLocation, clockStruct);
         ParamStruct paramStruct = AOS_ReadModelParameters(fileLocation, clockStruct);
         IrrMngtStruct irrMngtStruct = AOS_ReadIrrigationManagement(fileLocation, paramStruct);
@@ -27,7 +29,7 @@ public class AOS_Initialize {
         InitCondStruct initCondStruct = AOS_ReadModelInitialConditions(paramStruct, gwStruct, fieldMngtStruct, fileLocation);
 
         //Pack output structure
-        AOS_InitialiseStruct AOS_InitialiseStruct = new AOS_InitialiseStruct();
+        AOS_InitialiseStruct = new AOS_InitialiseStruct();
         AOS_InitialiseStruct.Parameter = paramStruct;
         AOS_InitialiseStruct.IrrigationManagement = irrMngtStruct;
         AOS_InitialiseStruct.FieldManagement = fieldMngtStruct;
@@ -39,7 +41,7 @@ public class AOS_Initialize {
 
         //Setup output files
         //Define output file location
-        String FileLoc = fileLocation.output + "\\";
+        String FileLoc = fileLocation.output;
         //Setup blank matrices to store outputs
         AOS_InitialiseStruct.Outputs.WaterContents = new int[clockStruct.TimeSpan.length][5 + paramStruct.soil.nComp];
         for (int i = 0; i < clockStruct.TimeSpan.length; i++) {
@@ -68,7 +70,8 @@ public class AOS_Initialize {
                 AOS_InitialiseStruct.Outputs.CropGrowth[i][j] = -999;
             }
         }
-        AOS_InitialiseStruct.Outputs.FinalOutput = new int[clockStruct.nSeasons][8];
+        //TODO check it at the end
+        AOS_InitialiseStruct.Outputs.FinalOutput = new String[clockStruct.nSeasons];
 
         //Store dates in daily matrices
         String s = clockStruct.SimulationStartTime;
@@ -607,7 +610,7 @@ public class AOS_Initialize {
         }
 
         fileLocation.input = dataArray.get(1).split(",")[1];
-        fileLocation.output = dataArray.get(2).split(",")[1];
+        fileLocation.output = dataArray.get(2).split(",")[1] + "\\";
 
         fileName = fileLocation.input.concat("\\FileSetup.csv");
         try {
@@ -638,7 +641,7 @@ public class AOS_Initialize {
         fileLocation.initialWCFilename = dataArray.get(6).split(",")[1];
         fileLocation.groundwaterFilename = dataArray.get(7).split(",")[1];
         fileLocation.CO2Filename = dataArray.get(8).split(",")[1];
-        fileLocation.outputFilename = dataArray.get(9).split(",")[1];
+        fileLocation.outputFilename = dataArray.get(9).split(",")[1] + "\\";
         fileLocation.writeDaily = dataArray.get(10).split(",")[1];
 
         return fileLocation;
