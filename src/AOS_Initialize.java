@@ -26,7 +26,8 @@ public class AOS_Initialize {
         paramStruct = AOS_ComputeVariables(paramStruct, WeatherStruct, clockStruct, gwStruct, fileLocation);
 
         //Define initial conditions
-        InitCondStruct initCondStruct = AOS_ReadModelInitialConditions(paramStruct, gwStruct, fieldMngtStruct, fileLocation);
+        //TODO
+//        InitCondStruct initCondStruct = AOS_ReadModelInitialConditions(paramStruct, gwStruct, fieldMngtStruct, fileLocation);
 
         //Pack output structure
         AOS_InitialiseStruct = new AOS_InitialiseStruct();
@@ -34,7 +35,8 @@ public class AOS_Initialize {
         AOS_InitialiseStruct.IrrigationManagement = irrMngtStruct;
         AOS_InitialiseStruct.FieldManagement = fieldMngtStruct;
         AOS_InitialiseStruct.Groundwater = gwStruct;
-        AOS_InitialiseStruct.InitialCondition = initCondStruct;
+        //TODO
+//        AOS_InitialiseStruct.InitialCondition = initCondStruct;
         AOS_InitialiseStruct.CropChoices = paramStruct.crop;
         AOS_InitialiseStruct.Weather = WeatherStruct;
         AOS_InitialiseStruct.FileLocation = fileLocation;
@@ -805,11 +807,11 @@ public class AOS_Initialize {
         paramStruct.soil.comp.dz = dz.toArray(new Double[dz.size()]);
         Double[] dzsum = div(100, round(dot(100.0, cumsum(paramStruct.soil.comp.dz))));
         paramStruct.soil.comp.dzsum = dzsum;
-        ArrayList<Double> Layer = new ArrayList<>();
+        ArrayList<Integer> Layer = new ArrayList<>();
         for (int i = 1; i < dataArray.size(); i++) {
-            Layer.add(Double.parseDouble(dataArray.get(i).split(",")[2]));
+            Layer.add(Integer.parseInt(dataArray.get(i).split(",")[2]));
         }
-        paramStruct.soil.comp.layer = Layer.toArray(new Double[Layer.size()]);
+        paramStruct.soil.comp.layer = Layer.toArray(new Integer[Layer.size()]);
 
         //Read crop mix input file
         //Open file
