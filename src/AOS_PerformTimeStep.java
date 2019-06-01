@@ -1,3 +1,4 @@
+import AOS_Solution.AOS_Solution;
 import Structs.*;
 
 public class AOS_PerformTimeStep {
@@ -15,18 +16,20 @@ public class AOS_PerformTimeStep {
         CO2 CO2 = (CO2) a[8];
 
         //Get model solution for current time-step
-        //TODO
+        a = AOS_Solution.run(Crop, Soil, Weather, IrrMngt, FieldMngt, Groundwater, InitCond, GrowingSeason, CO2);
+        InitCondStruct NewCond = (InitCondStruct) a[0];
+        Outputs Outputs = (Structs.Outputs) a[1];
 
         //Update initial conditions and outputs
         AOS_InitialiseStruct AOS_InitialiseStruct = aos_initialize.AOS_InitialiseStruct;
-//        AOS_InitialiseStruct.InitialCondition = NewCond;
-//        AOS_InitialiseStruct.Outputs = Outputs;
+        AOS_InitialiseStruct.InitialCondition = NewCond;
+        AOS_InitialiseStruct.Outputs = Outputs;
 
         //Check model termination
         AOS_CheckModelTermination(aos_initialize);
 
         //Update time step
-        //TODO
+        AOS_UpdateTime();
     }
 
     private static void AOS_CheckModelTermination(AOS_Initialize aos_initialize) {
@@ -47,5 +50,10 @@ public class AOS_PerformTimeStep {
         if (AOS_InitialiseStruct.InitialCondition.HarvestFlag && AOS_ClockStruct.SeasonCounter == AOS_ClockStruct.nSeasons) {
             AOS_ClockStruct.ModelTermination = true;
         }
+    }
+
+    //Function to update current time in model
+    private static void AOS_UpdateTime() {
+        //TODO
     }
 }
