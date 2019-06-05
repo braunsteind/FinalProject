@@ -11,4 +11,6 @@ public class InitCondStruct {
     public boolean ProtectedSeed;
     public int DelayedCDs;
     public double DelayedGDDs;
+    public double[] th_fc_Adj;
+    public int DaySubmerged;
 }
