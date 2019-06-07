@@ -4,9 +4,9 @@ import Structs.*;
 
 public class AOS_SoilWaterBalance {
     //Function to execute AquaCrop-OS soil water balance module
-    public static Object[] run(Crop Crop, Soil Soil, Weather Weather, IrrMngtStruct IrrMngt, FieldMngtStruct FieldMngt,
+    public static Object[] run(ClockStruct AOS_ClockStruct, Crop Crop, Soil Soil, Weather Weather, IrrMngtStruct IrrMngt, FieldMngtStruct FieldMngt,
                                GwStruct Groundwater, InitCondStruct InitCond, boolean GrowingSeason) {
-        //Unpack weather structure %%
+        //Unpack weather structure
         double P = Weather.Precip;
         double Et0 = Weather.RefET;
         int GDD = Weather.GDD;
@@ -15,9 +15,11 @@ public class AOS_SoilWaterBalance {
         InitCondStruct NewCond = InitCond;
 
         //Check for presence of groundwater table
+        //TODO
         NewCond = AOS_CheckGroundwaterTable(Soil, Groundwater, NewCond);
 
         //Pre-irrigation
+        //TODO
         Object[] a = AOS_PreIrrigation(Soil, Crop, IrrMngt, NewCond, GrowingSeason);
         NewCond = (InitCondStruct) a[0];
         double PreIrr = (double) a[1];
@@ -34,6 +36,9 @@ public class AOS_SoilWaterBalance {
         double Runoff = (double) a[0];
         double Infl = (double) a[1];
         NewCond = (InitCondStruct) a[2];
+
+        //Irrigation
+        a = AOS_Irrigation(AOS_ClockStruct, NewCond, IrrMngt, Crop, Soil, GrowingSeason, P, Runoff);
 
         return new Object[]{Crop, Soil};
     }
@@ -192,9 +197,73 @@ public class AOS_SoilWaterBalance {
                         Math.pow(0.00374 * CN, 2) + Math.pow(0.0000867 * CN, 3));
                 double CNtop = Math.round(5.6 * (Math.exp(-14 * Math.log(10))) + (2.33 * CN) -
                         Math.pow(0.0209 * CN, 2) + Math.pow(0.000076 * CN, 3));
+                //Check which compartment cover depth of top soil used to adjust curve number
+                int comp_sto = 0;
+                for (int i = 0; i < Soil.comp.dzsum.length; i++) {
+                    if (Soil.comp.dzsum[i] >= Soil.zCN) {
+                        comp_sto = i + 1;
+                        break;
+                    }
+                }
+                if (comp_sto != 0) {
+                    comp_sto = Soil.nComp;
+                }
+                //Calculate weighting factors by compartment
+                double xx = 0;
+                double[] wrel = new double[comp_sto];
+                for (int ii = 0; ii < comp_sto; ii++) {
+                    if (Soil.comp.dzsum[ii] > Soil.zCN) {
+                        Soil.comp.dzsum[ii] = Soil.zCN;
+                    }
+                    double wx = 1.016 * (1 - Math.exp(-4.16 * (Soil.comp.dzsum[ii] / Soil.zCN)));
+                    wrel[ii] = wx - xx;
+                    if (wrel[ii] < 0) {
+                        wrel[ii] = 0;
+                    } else if (wrel[ii] > 1) {
+                        wrel[ii] = 1;
+                    }
+                    xx = wx;
+                }
+                //Calculate relative wetness of top soil
+                double wet_top = 0;
+                for (int ii = 0; ii < comp_sto; ii++) {
+                    int layeri = Soil.comp.layer[ii];
+                    double th = Math.max(Soil.layer.th_wp[layeri], InitCond.th[ii]);
+                    wet_top = wet_top + (wrel[ii] * ((th - Soil.layer.th_wp[layeri]) /
+                            (Soil.layer.th_fc[layeri] - Soil.layer.th_wp[layeri])));
+                }
+                //Calculate adjusted curve number
+                if (wet_top > 1)
+                    wet_top = 1;
+                else if (wet_top < 0)
+                    wet_top = 0;
+                CN = Math.round(CNbot + (CNtop - CNbot) * wet_top);
             }
+            //Partition rainfall into runoff and infiltration (mm)
+            double S = (25400 / CN) - 254;
+            double term = P - ((5 / 100) * S);
+            if (term <= 0) {
+                Runoff = 0;
+                Infl = P;
+            } else {
+                Runoff = Math.pow(term, 2) / (P + 0.95 * S);
+                Infl = P - Runoff;
+            }
+        } else {
+            //Bunds on field, therefore no surface runoff
+            Runoff = 0;
+            Infl = P;
         }
 
         return new Object[]{Runoff, Infl, NewCond};
+    }
+
+    //Function to get irrigation depth for current day
+    private static Object[] AOS_Irrigation(ClockStruct AOS_ClockStruct, InitCondStruct InitCond, IrrMngtStruct IrrMngt, Crop Crop, Soil Soil,
+                                           boolean GrowingSeason, double Rain, double Runoff) {
+        //Store intial conditions for updating
+        InitCondStruct NewCond = InitCond;
+
+        return null;
     }
 }

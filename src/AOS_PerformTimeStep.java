@@ -16,7 +16,7 @@ public class AOS_PerformTimeStep {
         CO2 CO2 = (CO2) a[8];
 
         //Get model solution for current time-step
-        a = AOS_Solution.run(Crop, Soil, Weather, IrrMngt, FieldMngt, Groundwater, InitCond, GrowingSeason, CO2);
+        a = AOS_Solution.run(aos_initialize.clockStruct, Crop, Soil, Weather, IrrMngt, FieldMngt, Groundwater, InitCond, GrowingSeason, CO2);
         InitCondStruct NewCond = (InitCondStruct) a[0];
         Outputs Outputs = (Structs.Outputs) a[1];
 

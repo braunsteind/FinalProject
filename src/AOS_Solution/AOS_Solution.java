@@ -4,11 +4,11 @@ import Structs.*;
 
 public class AOS_Solution {
     //Function to perform AquaCrop-OS solution for a single time step
-    public static Object[] run(Crop Crop, Soil Soil, Weather Weather, IrrMngtStruct IrrMngt, FieldMngtStruct FieldMngt,
+    public static Object[] run(ClockStruct AOS_ClockStruct, Crop Crop, Soil Soil, Weather Weather, IrrMngtStruct IrrMngt, FieldMngtStruct FieldMngt,
                                GwStruct Groundwater, InitCondStruct InitCond, boolean GrowingSeason, CO2 CO2) {
         //Run simulations
         //1. Soil water balance
-        Object[] a = AOS_SoilWaterBalance.run(Crop, Soil, Weather, IrrMngt, FieldMngt, Groundwater, InitCond, GrowingSeason);
+        Object[] a = AOS_SoilWaterBalance.run(AOS_ClockStruct, Crop, Soil, Weather, IrrMngt, FieldMngt, Groundwater, InitCond, GrowingSeason);
         InitCondStruct NewCond = (InitCondStruct) a[0];
         SoilWatOutStruct SoilWBOut = (SoilWatOutStruct) a[1];
 

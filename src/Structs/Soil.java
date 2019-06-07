@@ -4,7 +4,7 @@ public class Soil {
     public double CalcSHP;
     public double Zsoil;
     public int nComp;
-    public double nLayer;
+    public int nLayer;
     public double AdjREW;
     public double REW;
     public double CN;

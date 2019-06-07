@@ -73,7 +73,7 @@ public class AOS_SetupSolution {
 
             for (int ii = 0; ii < comp_sto; ii++) {
                 //Get soil layer
-                double layeri = Soil.comp.layer[ii];
+                int layeri = Soil.comp.layer[ii];
 
                 //Determine fraction of compartment covered by top soil layer
                 double factor;
@@ -86,9 +86,9 @@ public class AOS_SetupSolution {
                 //Increment actual water storage (mm)
                 Wr = Wr + (factor * 1000 * InitCond.th[ii] * Soil.comp.dz[ii]);
                 //Increment water storage at field capacity (mm)
-                WrFC = WrFC + (factor * 1000 * Soil.layer.th_fc * Soil.comp.dz[ii]);
+                WrFC = WrFC + (factor * 1000 * Soil.layer.th_fc[layeri] * Soil.comp.dz[ii]);
                 //Increment water storage at permanent wilting point (mm)
-                WrWP = WrWP + (factor * 1000 * Soil.layer.th_wp * Soil.comp.dz[ii]);
+                WrWP = WrWP + (factor * 1000 * Soil.layer.th_wp[layeri] * Soil.comp.dz[ii]);
             }
 
             //Limit actual water storage to not be less than zero

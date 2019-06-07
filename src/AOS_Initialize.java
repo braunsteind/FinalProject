@@ -183,19 +183,25 @@ public class AOS_Initialize {
             String[] split = dataArray.get(1).split(",");
             //Assign data
             paramStruct.soil.layer.dz = Double.parseDouble(split[1]);
-            paramStruct.soil.layer.th_s = Double.parseDouble(split[2]);
-            paramStruct.soil.layer.th_fc = Double.parseDouble(split[3]);
-            paramStruct.soil.layer.th_wp = Double.parseDouble(split[4]);
-            paramStruct.soil.layer.Ksat = Double.parseDouble(split[5]);
+            paramStruct.soil.layer.th_s = new double[paramStruct.soil.nComp];
+            paramStruct.soil.layer.th_s[0] = Double.parseDouble(split[2]);
+            paramStruct.soil.layer.th_fc = new double[paramStruct.soil.nComp];
+            paramStruct.soil.layer.th_fc[0] = Double.parseDouble(split[3]);
+            paramStruct.soil.layer.th_wp = new double[paramStruct.soil.nComp];
+            paramStruct.soil.layer.th_wp[0] = Double.parseDouble(split[4]);
+            paramStruct.soil.layer.Ksat = new double[paramStruct.soil.nComp];
+            paramStruct.soil.layer.Ksat[0] = Double.parseDouble(split[5]);
             paramStruct.soil.layer.Penetrability = Double.parseDouble(split[6]);
             //Calculate additional variables
-            paramStruct.soil.layer.th_dry = paramStruct.soil.layer.th_wp / 2;
+            paramStruct.soil.layer.th_dry = new double[paramStruct.soil.nComp];
+            paramStruct.soil.layer.th_dry[0] = paramStruct.soil.layer.th_wp[0] / 2;
         }
 
         paramStruct.soil.comp.th_fc = new Double[paramStruct.soil.nComp];
         //Assign field capacity values to each soil compartment
         for (int i = 0; i < paramStruct.soil.nComp; i++) {
-            paramStruct.soil.comp.th_fc[i] = paramStruct.soil.layer.th_fc;
+            int layeri = paramStruct.soil.comp.layer[i];
+            paramStruct.soil.comp.th_fc[i] = paramStruct.soil.layer.th_fc[layeri];
         }
 
         //Calculate capillary rise parameters for all soil layers
@@ -207,20 +213,21 @@ public class AOS_Initialize {
 
         //Calculate drainage characteristic (tau)
         //Calculations use equation given by Raes et al. 2012
+        paramStruct.soil.layer.tau = new double[paramStruct.soil.nLayer];
         for (int i = 0; i < paramStruct.soil.nLayer; i++) {
-            paramStruct.soil.layer.tau = 0.0866 * (Math.pow(paramStruct.soil.layer.Ksat, 0.35));
-            paramStruct.soil.layer.tau = Math.round((100 * paramStruct.soil.layer.tau)) / 100.0;
-            if (paramStruct.soil.layer.tau > 1) {
-                paramStruct.soil.layer.tau = 1;
-            } else if (paramStruct.soil.layer.tau < 0) {
-                paramStruct.soil.layer.tau = 0;
+            paramStruct.soil.layer.tau[i] = 0.0866 * (Math.pow(paramStruct.soil.layer.Ksat[i], 0.35));
+            paramStruct.soil.layer.tau[i] = Math.round((100 * paramStruct.soil.layer.tau[i])) / 100.0;
+            if (paramStruct.soil.layer.tau[i] > 1) {
+                paramStruct.soil.layer.tau[i] = 1;
+            } else if (paramStruct.soil.layer.tau[i] < 0) {
+                paramStruct.soil.layer.tau[i] = 0;
             }
         }
 
 
         //Calculate readily evaporable water in surface layer %%
         if (paramStruct.soil.AdjREW == 0) {
-            paramStruct.soil.REW = Math.round((1000 * (paramStruct.soil.layer.th_fc - paramStruct.soil.layer.th_dry) * paramStruct.soil.EvapZsurf));
+            paramStruct.soil.REW = Math.round((1000 * (paramStruct.soil.layer.th_fc[0] - paramStruct.soil.layer.th_dry[0]) * paramStruct.soil.EvapZsurf));
         }
 
         //Calculate additional parameters for all crop types in mix
@@ -754,7 +761,7 @@ public class AOS_Initialize {
         paramStruct.soil.CalcSHP = Double.parseDouble(dataArray.get(4).split(",")[1]);
         paramStruct.soil.Zsoil = Double.parseDouble(dataArray.get(5).split(",")[1]);
         paramStruct.soil.nComp = Integer.parseInt(dataArray.get(6).split(",")[1]);
-        paramStruct.soil.nLayer = Double.parseDouble(dataArray.get(7).split(",")[1]);
+        paramStruct.soil.nLayer = Integer.parseInt(dataArray.get(7).split(",")[1]);
         paramStruct.soil.AdjREW = Double.parseDouble(dataArray.get(8).split(",")[1]);
         paramStruct.soil.REW = Double.parseDouble(dataArray.get(9).split(",")[1]);
         paramStruct.soil.CN = Double.parseDouble(dataArray.get(10).split(",")[1]);

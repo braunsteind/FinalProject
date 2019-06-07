@@ -15,6 +15,5 @@ public class SoilWatOutStruct {
     public double IrrNet;
     public double GwIn;
     public double Irr;
-    public double IrrNet;
     public double Wr;
 }
