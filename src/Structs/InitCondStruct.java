@@ -13,4 +13,9 @@ public class InitCondStruct {
     public double DelayedGDDs;
     public double[] th_fc_Adj;
     public int DaySubmerged;
+    public double Zroot;
+    public double Tpot;
+    public double Epot;
+    public int GrowthStage;
+    public double IrrCum;
 }

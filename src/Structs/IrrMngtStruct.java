@@ -11,4 +11,5 @@ public class IrrMngtStruct {
     public int AppEff;
     public int NetIrrSMT;
     public int WetSurf;
+    public double[] SMT;
 }
