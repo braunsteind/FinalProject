@@ -90,4 +90,11 @@ public class Crop {
     public double tLinSwitch;
     public double dHILinear;
     public double fCO2;
+
+    public int MaxCanopy;
+    public int Canopy10Pct;
+    public int HIstartCD;
+    public int YldFormCD;
+    public int FloweringCD;
+    public double HIGC;
 }

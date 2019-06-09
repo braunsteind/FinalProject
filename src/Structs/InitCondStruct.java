@@ -44,4 +44,6 @@ public class InitCondStruct {
     public double Fpost;
     public double Fpol;
     public boolean PreAdj;
+    public double CC;
+    public double CC_NS;
 }
