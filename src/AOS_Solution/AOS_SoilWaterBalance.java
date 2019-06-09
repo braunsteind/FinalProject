@@ -41,6 +41,30 @@ public class AOS_SoilWaterBalance {
 
         //Irrigation
         a = AOS_Irrigation(AOS_ClockStruct, NewCond, IrrMngt, Crop, Soil, GrowingSeason, P, Runoff);
+        NewCond = (InitCondStruct) a[0];
+        double Irr = (double) a[1];
+
+        //Infiltration
+        a = AOS_Infiltration(Soil, NewCond, Infl, Irr, IrrMngt, FieldMngt, FluxOut, DeepPerc, Runoff, GrowingSeason);
+        NewCond = (InitCondStruct) a[0];
+        DeepPerc = (double) a[1];
+        Runoff = (double) a[2];
+        Infl = (double) a[3];
+        FluxOut = (double[]) a[4];
+
+        //Capillary rise
+        a = AOS_CapillaryRise(Soil, Groundwater, NewCond, FluxOut);
+        NewCond = (InitCondStruct) a[0];
+        double CR = (double) a[1];
+
+        //Soil evaporation
+        a = AOS_SoilEvaporation(AOS_ClockStruct, Soil, IrrMngt, FieldMngt, NewCond, Et0, Infl, P, Irr);
+        NewCond = (InitCondStruct) a[0];
+        double Es = (double) a[1];
+        double EsPot = (double) a[2];
+
+
+
 
         return new Object[]{Crop, Soil};
     }
@@ -477,5 +501,376 @@ public class AOS_SoilWaterBalance {
         }
 
         return new Object[]{Dr, TAW, thRZ};
+    }
+
+    //Function to get irrigation depth for current day
+    private static Object[] AOS_Infiltration(Soil Soil, InitCondStruct InitCond, double Infl, double Irr,
+                                             IrrMngtStruct IrrMngt, FieldMngtStruct FieldMngt, double[] FluxOut,
+                                             double DeepPerc0, double Runoff0, boolean GrowingSeason) {
+        //Store initial conditions in new structure for updating
+        InitCondStruct NewCond = InitCond;
+        double[] thnew = NewCond.th;
+
+        //Update infiltration rate for irrigation
+        //Note: irrigation amount adjusted for specified application efficiency
+        if (GrowingSeason) {
+            Infl = Infl + (Irr * (IrrMngt.AppEff / 100));
+        }
+
+        //Determine surface storage (if bunds are present)
+        double RunoffIni = 0, ToStore = 0;
+        if (FieldMngt.Bunds.compareTo("Y") == 0) {
+            //TODO
+        } else if (FieldMngt.Bunds.compareTo("N") == 0) {
+            //No bunds on field
+            if (Infl > Soil.layer.Ksat[1]) {
+                //Infiltration limited by saturated hydraulic conductivity of top soil layer
+                ToStore = Soil.layer.Ksat[1];
+                //Additional water runs off
+                RunoffIni = Infl - Soil.layer.Ksat[1];
+            } else {
+                //All water infiltrates
+                ToStore = Infl;
+                RunoffIni = 0;
+            }
+
+            //Update surface storage
+            NewCond.SurfaceStorage = 0;
+            //Add any water remaining behind bunds to surface runoff (needed for
+            //days when bunds are removed to maintain water balance)
+            RunoffIni = RunoffIni + InitCond.SurfaceStorage;
+        }
+
+        //Initialise counters
+        int ii = 0;
+        double Runoff = 0;
+
+        //Infiltrate incoming water
+        double DeepPerc = 0;
+        if (ToStore > 0) {
+            //TODO
+        } else {
+            //No infiltration
+            DeepPerc = 0;
+            Runoff = 0;
+        }
+
+        //Update total runoff
+        Runoff = Runoff + RunoffIni;
+
+        //Update surface storage (if bunds are present)
+        if (Runoff > RunoffIni) {
+            if (FieldMngt.Bunds.compareTo("Y") == 0) {
+                if (FieldMngt.zBund > 0.001) {
+                    //Increase surface storage
+                    NewCond.SurfaceStorage = NewCond.SurfaceStorage + (Runoff - RunoffIni);
+                    //Limit surface storage to bund height
+                    if (NewCond.SurfaceStorage > (FieldMngt.zBund * 1000)) {
+                        //Additional water above top of bunds becomes runoff
+                        Runoff = RunoffIni + (NewCond.SurfaceStorage - (FieldMngt.zBund * 1000));
+                        //Set surface storage to bund height
+                        NewCond.SurfaceStorage = FieldMngt.zBund * 1000;
+                    } else {
+                        //No additional overtopping of bunds
+                        Runoff = RunoffIni;
+                    }
+                }
+            }
+        }
+        //Store updated water contents
+        NewCond.th = thnew;
+
+        //Update deep percolation, surface runoff, and infiltration values
+        DeepPerc = DeepPerc + DeepPerc0;
+        Infl = Infl - Runoff;
+        double RunoffTot = Runoff + Runoff0;
+
+        return new Object[]{NewCond, DeepPerc, RunoffTot, Infl, FluxOut};
+    }
+
+    //Function to calculate capillary rise from a shallow groundwater table
+    private static Object[] AOS_CapillaryRise(Soil Soil, GwStruct Groundwater, InitCondStruct InitCond, double[] FluxOut) {
+        //Store initial conditions for updating
+        InitCondStruct NewCond = InitCond;
+        double CrTot = 0;
+
+        //Get groundwater table elevation on current day %%
+        double zGW = NewCond.zGW;
+
+        //Calculate capillary rise
+        if (Groundwater.WaterTable == 0) {//No water table present
+            //Capillary rise is zero
+            CrTot = 0;
+        } else if (Groundwater.WaterTable == 1) { //Water table present
+            //TODO
+        }
+
+        return new Object[]{NewCond, CrTot};
+    }
+
+    //Function to calculate daily soil evaporation in AOS
+    private static Object[] AOS_SoilEvaporation(ClockStruct AOS_ClockStruct, Soil Soil, IrrMngtStruct IrrMngt,
+                                                FieldMngtStruct FieldMngt, InitCondStruct InitCond, double Et0,
+                                                double Infl, double Rain, double Irr) {
+        double EsAct = 0, EsPot = 0;
+
+        //Store initial conditions in new structure that will be updated
+        InitCondStruct NewCond = InitCond;
+
+        //Initialise Wevap structur
+        WevapStruct Wevap = new WevapStruct();
+
+        //Prepare stage 2 evaporation (REW gone)
+        //Only do this if it is first day of simulation, or if it is first day of
+        //growing season and not simulating off-season
+        if (AOS_ClockStruct.TimeStepCounter == 1 || (NewCond.DAP == 1 && AOS_ClockStruct.OffSeason.compareTo("N") == 0)) {
+            //Reset storage in surface soil layer to zero
+            NewCond.Wsurf = 0;
+            //Set evaporation depth to minimum
+            NewCond.EvapZ = Soil.EvapZmin;
+            //Trigger stage 2 evaporation
+            NewCond.Stage2 = true;
+            //Get relative water content for start of stage 2 evaporation
+            Wevap = AOS_EvapLayerWaterContent(NewCond, Soil, Wevap);
+            NewCond.Wstage2 = (Wevap.Act - (Wevap.Fc - Soil.REW)) / (Wevap.Sat - (Wevap.Fc - Soil.REW));
+            NewCond.Wstage2 = round((100 * NewCond.Wstage2)) / 100;
+            if (NewCond.Wstage2 < 0) {
+                NewCond.Wstage2 = 0;
+            }
+        }
+
+        //Prepare soil evaporation stage 1
+        //Adjust water in surface evaporation layer for any infiltration
+        if (Rain > 0 || (Irr > 0 && IrrMngt.IrrMethod != 4)) {
+            //Only prepare stage one when rainfall occurs, or when irrigation is trigerred (not in net irrigation mode)
+            if (Infl > 0) {
+                //Update storage in surface evaporation layer for incoming infiltration
+                NewCond.Wsurf = Infl;
+                //Water stored in surface evaporation layer cannot exceed REW
+                if (NewCond.Wsurf > Soil.REW) {
+                    NewCond.Wsurf = Soil.REW;
+                }
+                //Reset variables
+                NewCond.Wstage2 = 0;
+                NewCond.EvapZ = Soil.EvapZmin;
+                NewCond.Stage2 = false;
+            }
+        }
+
+        //Calculate potential soil evaporation rate (mm/day)
+        EsPot = NewCond.Ke * Et0;
+
+        //Adjust potential soil evaporation for mulches and/or partial wetting
+        //Mulches
+        double EsPotMul = 0;
+        if (NewCond.SurfaceStorage < 0.000001) {
+            if (FieldMngt.Mulches.compareTo("N") == 0) {
+                //No mulches present
+                EsPotMul = EsPot;
+            } else if (FieldMngt.Mulches.compareTo("Y") == 0) {
+                //Mulches present
+                EsPotMul = EsPot * (1 - FieldMngt.fMulch * (FieldMngt.MulchPct / 100));
+            }
+        } else {
+            //Surface is flooded - no adjustment of potential soil evaporation for mulches
+            EsPotMul = EsPot;
+        }
+
+        //Partial surface wetting by irrigation
+        double EsPotIrr;
+        if (Irr > 0 && IrrMngt.IrrMethod != 4) {
+            //Only apply adjustment if irrigation occurs and not in net irrigation mode
+            if (Rain > 1 || NewCond.SurfaceStorage > 0) {
+                //No adjustment for partial wetting - assume surface is fully wet
+                EsPotIrr = EsPot;
+            } else {
+                //Adjust for proprtion of surface area wetted by irrigation
+                EsPotIrr = EsPot * (IrrMngt.WetSurf / 100);
+            }
+        } else {
+            //No adjustment for partial surface wetting
+            EsPotIrr = EsPot;
+        }
+
+        //Assign minimum value (mulches and partial wetting don't combine)
+        EsPot = min(EsPotIrr, EsPotMul);
+
+        //Surface evaporation
+        //Initialise actual evaporation counter
+        EsAct = 0;
+        //Evaporate surface storage
+        if (NewCond.SurfaceStorage > 0) {
+            if (NewCond.SurfaceStorage > EsPot) {
+                //All potential soil evaporation can be supplied by surface storage
+                EsAct = EsPot;
+                //Update surface storage
+                NewCond.SurfaceStorage = NewCond.SurfaceStorage - EsAct;
+            } else {
+                //Surface storage is not sufficient to meet all potential soil evaporation
+                EsAct = NewCond.SurfaceStorage;
+                //Update surface storage, evaporation layer depth, stage
+                NewCond.SurfaceStorage = 0;
+                NewCond.Wsurf = Soil.REW;
+                NewCond.Wstage2 = 0;
+                NewCond.EvapZ = Soil.EvapZmin;
+                NewCond.Stage2 = false;
+            }
+        }
+
+        //Stage 1 evaporation
+        //Determine total water to be extracted
+        double ToExtract = EsPot - EsAct;
+        //Determine total water to be extracted in stage one (limited by surface layer water storage)
+        double ExtractPotStg1 = min(ToExtract, NewCond.Wsurf);
+        //Extract water
+        if (ExtractPotStg1 > 0) {
+            //TODO
+        }
+
+        //Stage 2 evaporation
+        //Extract water
+        if (ToExtract > 0.0001) {
+            //Start stage 2
+            NewCond.Stage2 = true;
+            //Get sub-daily evaporative demand
+            double Edt = ToExtract / (double) AOS_ClockStruct.EvapTimeSteps;
+            //Loop sub-daily steps
+            for (int jj = 0; jj < AOS_ClockStruct.EvapTimeSteps; jj++) {
+                //Get current water storage (mm)
+                Wevap = AOS_EvapLayerWaterContent(NewCond, Soil, Wevap);
+                //Get water storage (mm) at start of stage 2 evaporation
+                double Wupper = NewCond.Wstage2 * (Wevap.Sat - (Wevap.Fc - Soil.REW)) + (Wevap.Fc - Soil.REW);
+                //Get water storage (mm) when there is no evaporation
+                double Wlower = Wevap.Dry;
+                //Get relative depletion of evaporation storage in stage 2
+                double Wrel = (Wevap.Act - Wlower) / (Wupper - Wlower);
+                //Check if need to expand evaporation layer
+                double Wcheck;
+                if (Soil.EvapZmax > Soil.EvapZmin) {
+                    Wcheck = Soil.fWrelExp * ((Soil.EvapZmax - NewCond.EvapZ) / (Soil.EvapZmax - Soil.EvapZmin));
+                    while (Wrel < Wcheck && NewCond.EvapZ < Soil.EvapZmax) {
+                        //Expand evaporation layer by 1 mm
+                        NewCond.EvapZ = NewCond.EvapZ + 0.001;
+                        //Update water storage (mm) in evaporation layer
+                        Wevap = AOS_EvapLayerWaterContent(NewCond, Soil, Wevap);
+                        Wupper = NewCond.Wstage2 * (Wevap.Sat - (Wevap.Fc - Soil.REW)) + (Wevap.Fc - Soil.REW);
+                        Wlower = Wevap.Dry;
+                        //Update relative depletion of evaporation storage
+                        Wrel = (Wevap.Act - Wlower) / (Wupper - Wlower);
+                        Wcheck = Soil.fWrelExp * ((Soil.EvapZmax - NewCond.EvapZ) / (Soil.EvapZmax - Soil.EvapZmin));
+                    }
+                }
+                //Get stage 2 evaporation reduction coefficient
+                double Kr = (exp(Soil.fevap * Wrel) - 1) / (exp(Soil.fevap) - 1);
+                if (Kr > 1) {
+                    Kr = 1;
+                }
+                //Get water to extract (mm)
+                double ToExtractStg2 = Kr * Edt;
+
+                //Extract water from compartments
+                int sum = 0;
+                for (int i = 0; i < Soil.comp.dzsum.length; i++) {
+                    if (Soil.comp.dzsum[i] < NewCond.EvapZ) {
+                        sum++;
+                    }
+                }
+                int comp_sto = sum + 1;
+                int comp = 0;
+                double factor = 0;
+                while (ToExtractStg2 > 0 && comp < comp_sto) {
+                    //Increment compartment counter
+                    comp = comp + 1;
+                    //Specify layer number
+                    int layeri = Soil.comp.layer[comp];
+                    //Determine proportion of compartment in evaporation layer
+                    if (Soil.comp.dzsum[comp] > NewCond.EvapZ) {
+                        factor = 1 - ((Soil.comp.dzsum[comp] - NewCond.EvapZ) / Soil.comp.dz[comp]);
+                    } else {
+                        factor = 1;
+                    }
+                    //Water storage (mm) at air dry
+                    double Wdry = 1000 * Soil.layer.th_dry[layeri] * Soil.comp.dz[comp];
+                    //Available water (mm)
+                    double W = 1000 * NewCond.th[comp] * Soil.comp.dz[comp];
+                    //Water available in compartment for extraction (mm)
+                    double AvW = (W - Wdry) * factor;
+                    if (AvW >= ToExtractStg2) {
+                        //Update actual evaporation
+                        EsAct = EsAct + ToExtractStg2;
+                        //Update depth of water in current compartment
+                        W = W - ToExtractStg2;
+                        //Update total water to be extracted
+                        ToExtract = ToExtract - ToExtractStg2;
+                        //Update water to be extracted from surface layer (stage 1)
+                        ToExtractStg2 = 0;
+                    } else {
+                        //Update actual evaporation
+                        EsAct = EsAct + AvW;
+                        //Update depth of water in current compartment
+                        W = W - AvW;
+                        //Update water to be extracted from surface layer (stage 1)
+                        ToExtractStg2 = ToExtractStg2 - AvW;
+                        //Update total water to be extracted
+                        ToExtract = ToExtract - AvW;
+                    }
+                    //Update water content
+                    NewCond.th[comp] = W / (1000 * Soil.comp.dz[comp]);
+                }
+            }
+        }
+
+        //Store potential evaporation for irrigation calculations on next day
+        NewCond.Epot = EsPot;
+
+        return new Object[]{NewCond, EsAct, EsPot};
+    }
+
+    //Function to get water contents in the evaporation layer
+    private static WevapStruct AOS_EvapLayerWaterContent(InitCondStruct InitCond, Soil Soil, WevapStruct Wevap) {
+        //Determine actual water content (mm)
+        //Find soil compartments covered by evaporation layer
+        int sum = 0;
+        for (int i = 0; i < Soil.comp.dzsum.length; i++) {
+            if (Soil.comp.dzsum[i] < InitCond.EvapZ) {
+                sum++;
+            }
+        }
+        int comp_sto = sum + 1;
+
+        //Initialise variables
+        Wevap.Act = 0;
+        Wevap.Sat = 0;
+        Wevap.Fc = 0;
+        Wevap.Wp = 0;
+        Wevap.Dry = 0;
+
+        for (int ii = 0; ii < comp_sto; ii++) {
+            //Specify layer number
+            int layeri = Soil.comp.layer[ii];
+            //Determine fraction of soil compartment covered by evaporation layer
+            double factor = 0;
+            if (Soil.comp.dzsum[ii] > InitCond.EvapZ) {
+                factor = 1 - ((Soil.comp.dzsum[ii] - InitCond.EvapZ) / Soil.comp.dz[ii]);
+            } else {
+                factor = 1;
+            }
+            //Actual water storage in evaporation layer (mm)
+            Wevap.Act = Wevap.Act + (factor * 1000 * InitCond.th[ii] * Soil.comp.dz[ii]);
+            //Water storage in evaporation layer at saturation (mm)
+            Wevap.Sat = Wevap.Sat + (factor * 1000 * Soil.layer.th_s[layeri] * Soil.comp.dz[ii]);
+            //Water storage in evaporation layer at field capacity (mm)
+            Wevap.Fc = Wevap.Fc + (factor * 1000 * Soil.layer.th_fc[layeri] * Soil.comp.dz[ii]);
+            //Water storage in evaporation layer at permanent wilting point (mm)
+            Wevap.Wp = Wevap.Wp + (factor * 1000 * Soil.layer.th_wp[layeri] * Soil.comp.dz[ii]);
+            //Water storage in evaporation layer at air dry (mm)
+            Wevap.Dry = Wevap.Dry + (factor * 1000 * Soil.layer.th_dry[layeri] * Soil.comp.dz[ii]);
+        }
+
+        if (Wevap.Act < 0) {
+            Wevap.Act = 0;
+        }
+
+        return Wevap;
     }
 }

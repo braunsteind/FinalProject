@@ -18,4 +18,11 @@ public class InitCondStruct {
     public double Epot;
     public int GrowthStage;
     public double IrrCum;
+    public double SurfaceStorage;
+    public double zGW;
+    public double Wsurf;
+    public double EvapZ;
+    public boolean Stage2;
+    public double Wstage2;
+    public double Ke;
 }
