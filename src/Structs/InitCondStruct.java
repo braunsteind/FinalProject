@@ -25,4 +25,8 @@ public class InitCondStruct {
     public boolean Stage2;
     public double Wstage2;
     public double Ke;
+    public double Kcb_NS;
+    public double Kcb;
+    public double tEarlySen;
+    public double AerDays;
 }

@@ -63,7 +63,13 @@ public class AOS_SoilWaterBalance {
         double Es = (double) a[1];
         double EsPot = (double) a[2];
 
-
+        //Crop transpiration
+        a = AOS_Transpiration(Soil, Crop, IrrMngt, NewCond, Et0, GrowingSeason, GDD, PreIrr);
+        double Tr = (double) a[0];
+        double TrPot_NS = (double) a[1];
+        double TrPot = (double) a[2];
+        NewCond = (InitCondStruct) a[3];
+        double IrrNet = (double) a[4];
 
 
         return new Object[]{Crop, Soil};
@@ -872,5 +878,192 @@ public class AOS_SoilWaterBalance {
         }
 
         return Wevap;
+    }
+
+
+    //Function to calculate crop transpiration on current day
+    private static Object[] AOS_Transpiration(Soil Soil, Crop Crop, IrrMngtStruct IrrMngt, InitCondStruct InitCond,
+                                              double Et0, boolean GrowingSeason, int GDD, double PreIrr) {
+        //Store initial conditions
+        InitCondStruct NewCond = InitCond;
+        double TrAct = 0, TrPotNS = 0, TrPot0 = 0, IrrNet = 0;
+
+        //Calculate transpiration (if in growing season)
+        if (GrowingSeason) {
+            //Calculate potential transpiration
+            //1. No prior water stress
+            TrPotNS = NewCond.Kcb_NS * Et0;
+            //2. Potential prior water stress and/or delayed development
+            TrPot0 = NewCond.Kcb * Et0;
+            //3. Adjust potential transpiration for cold stress effects
+            //Check if cold stress occurs on current day
+            double KsCold = 0;
+            if (Crop.TrColdStress == 0) {
+                //Cold temperature stress does not affect transpiration
+                KsCold = 1;
+            } else if (Crop.TrColdStress == 1) {
+                //Transpiration can be affected by cold temperature stress
+                if (GDD >= Crop.GDD_up) {
+                    //No cold temperature stress
+                    KsCold = 1;
+                } else if (GDD <= Crop.GDD_lo) {
+                    //Transpiration fully inhibited by cold temperature stress
+                    KsCold = 0;
+                } else {
+                    //Transpiration partially inhibited by cold temperature stress
+                    //Get parameters for logistic curve
+                    double KsTr_up = 1;
+                    double KsTr_lo = 0.02;
+                    double fshapeb = (-1) * (log(((KsTr_lo * KsTr_up) - 0.98 * KsTr_lo) / (0.98 * (KsTr_up - KsTr_lo))));
+                    //Calculate cold stress level
+                    double GDDrel = (GDD - Crop.GDD_lo) / (Crop.GDD_up - Crop.GDD_lo);
+                    KsCold = (KsTr_up * KsTr_lo) / (KsTr_lo + (KsTr_up - KsTr_lo) * exp(-fshapeb * GDDrel));
+                    KsCold = KsCold - KsTr_lo * (1 - GDDrel);
+                }
+            }
+            //Correct potential transpiration rate (mm/day)
+            TrPot0 = TrPot0 * KsCold;
+            TrPotNS = TrPotNS * KsCold;
+
+            //Calculate surface layer transpiration
+            double TrPot = 0;
+            double TrAct0 = 0;
+            if (NewCond.SurfaceStorage > 0 && NewCond.DaySubmerged < Crop.LagAer) {
+                //TODO
+            } else {
+                //No surface transpiration occurs
+                TrPot = TrPot0;
+                TrAct0 = 0;
+            }
+
+            //Update potential root zone transpiration for water stress
+            //Determine root zone and top soil depletion, and root zone water content
+            Object[] a = AOS_RootZoneWater(Soil, Crop, NewCond);
+            TAW DrReturn = (TAW) a[0];
+            TAW TAWReturn = (TAW) a[1];
+            thRZStruct thRZ = (thRZStruct) a[2];
+
+            //Check whether to use root zone or top soil depletions for calculating water stress
+            double Dr = 0, TAW = 0;
+            if (DrReturn.Rz / TAWReturn.Rz <= DrReturn.Zt / TAWReturn.Zt) {
+                //Root zone is wetter than top soil, so use root zone value
+                Dr = DrReturn.Rz;
+                TAW = TAWReturn.Rz;
+            } else {
+                //Top soil is wetter than root zone, so use top soil values
+                Dr = DrReturn.Zt;
+                TAW = TAWReturn.Zt;
+            }
+            //Calculate water stress coefficients
+            boolean beta = true;
+            KswStruct Ksw = AOS_WaterStress(Crop, NewCond, Dr, TAW, Et0, beta);
+            //Calculate aeration stress coefficients
+            a = AOS_AerationStress(Crop, NewCond, thRZ);
+            double Ksa = (double) a[0];
+            NewCond = (InitCondStruct) a[1];
+            //Maximum stress effect
+            double Ks = min(Ksw.StoLin, Ksa);
+            //Update potential transpiration in root zone
+            if (IrrMngt.IrrMethod != 4) {
+
+            }
+        }
+
+        return new Object[]{TrAct, TrPotNS, TrPot0, NewCond, IrrNet};
+    }
+
+    //Function to calculate water stress coefficients
+    private static KswStruct AOS_WaterStress(Crop Crop, InitCondStruct InitCond, double Dr, double TAW, double Et0, boolean beta) {
+        //Calculate relative root zone water depletion for each stress type
+        //Number of stress variables
+        int nstress = Crop.p_up.length;
+
+        //Store stress thresholds
+        double[] p_up = Crop.p_up;
+        double[] p_lo = Crop.p_lo;
+        if (Crop.ETadj == 1) {
+            //Adjust stress thresholds for Et0 on current day (don't do this for
+            //pollination water stress coefficient)
+            for (int ii = 0; ii < 3; ii++) {
+                p_up[ii] = p_up[ii] + (0.04 * (5 - Et0)) * (log10(10 - 9 * p_up[ii]));
+                p_lo[ii] = p_lo[ii] + (0.04 * (5 - Et0)) * (log10(10 - 9 * p_lo[ii]));
+            }
+        }
+        //Adjust senescence threshold if early sensescence is triggered
+        if (beta && InitCond.tEarlySen > 0) {
+            p_up[2] = p_up[2] * (1 - Crop.beta / 100);
+        }
+
+        //Limit values
+        for (int i = 0; i < p_up.length; i++) {
+            if (p_up[i] < 0) {
+                p_up[i] = 0;
+            } else if (p_up[i] > 1) {
+                p_up[i] = 1;
+            }
+        }
+        for (int i = 0; i < p_lo.length; i++) {
+            if (p_lo[i] < 0) {
+                p_lo[i] = 0;
+            } else if (p_lo[i] > 1) {
+                p_lo[i] = 1;
+            }
+        }
+
+        //Calculate relative depletion
+        double[] Drel = new double[nstress];
+        for (int ii = 0; ii < nstress; ii++) {
+            if (Dr <= (p_up[ii] * TAW)) {
+                //No water stress
+                Drel[ii] = 0;
+            } else if ((Dr > (p_up[ii] * TAW)) && (Dr < (p_lo[ii] * TAW))) {
+                //Partial water stress
+                Drel[ii] = 1 - ((p_lo[ii] - (Dr / TAW)) / (p_lo[ii] - p_up[ii]));
+            } else if (Dr >= (p_lo[ii] * TAW)) {
+                //Full water stress
+                Drel[ii] = 1;
+            }
+        }
+
+        //Calculate root zone water stress coefficients
+        double[] Ks = new double[3];
+        for (int ii = 0; ii < 3; ii++) {
+            Ks[ii] = 1 - ((exp(Drel[ii] * Crop.fshape_w[ii]) - 1) / (exp(Crop.fshape_w[ii]) - 1));
+        }
+
+        KswStruct Ksw = new KswStruct();
+        //Water stress coefficient for leaf expansion
+        Ksw.Exp = Ks[0];
+        //Water stress coefficient for stomatal closure
+        Ksw.Sto = Ks[1];
+        //Water stress coefficient for senescence
+        Ksw.Sen = Ks[2];
+        //Water stress coefficient for pollination failure
+        Ksw.Pol = 1 - Drel[3];
+        //Mean water stress coefficient for stomatal closure
+        Ksw.StoLin = 1 - Drel[1];
+        return Ksw;
+    }
+
+    //Function to calculate aeration stress coefficient
+    private static Object[] AOS_AerationStress(Crop Crop, InitCondStruct InitCond, thRZStruct thRZ) {
+        //Store initial conditions in new structure for updating
+        InitCondStruct NewCond = InitCond;
+        double Ksa = 0;
+
+        //Determine aeration stress (root zone)
+        if (thRZ.Act > thRZ.Aer) {
+            //Calculate aeration stress coefficient
+            if (NewCond.AerDays < Crop.LagAer) {
+                //TODO
+            }
+        } else {
+            //Set aeration stress coefficient to one (no stress value)
+            Ksa = 1;
+            //Reset aeration days counter
+            NewCond.AerDays = 0;
+        }
+
+        return new Object[]{Ksa, NewCond};
     }
 }
