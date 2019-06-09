@@ -29,4 +29,19 @@ public class InitCondStruct {
     public double Kcb;
     public double tEarlySen;
     public double AerDays;
+    public double Y;
+    public double B;
+    public double B_NS;
+    public double HIadj;
+    public double rCor;
+    public double TrRatio;
+    public double HIref;
+    public double PctLagPhase;
+    public double CCprev;
+    public boolean YieldForm;
+    public double HI;
+    public double Fpre;
+    public double Fpost;
+    public double Fpol;
+    public boolean PreAdj;
 }
