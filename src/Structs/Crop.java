@@ -97,4 +97,6 @@ public class Crop {
     public int YldFormCD;
     public int FloweringCD;
     public double HIGC;
+    public double CanopyDevEnd;
+    public double MaxCanopyCD;
 }

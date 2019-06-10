@@ -46,4 +46,15 @@ public class InitCondStruct {
     public boolean PreAdj;
     public double CC;
     public double CC_NS;
+    public double CCxAct;
+    public double CC0adj;
+    public double CCxAct_NS;
+    public double CCxW_NS;
+    public boolean PrematSenes;
+    public double CCxEarlySen;
+    public double CCxW;
+    public double CCadj;
+    public double CCadj_NS;
+    public double AgeDays_NS;
+    public double AgeDays;
 }
