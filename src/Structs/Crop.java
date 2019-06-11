@@ -100,4 +100,5 @@ public class Crop {
     public double CanopyDevEnd;
     public double MaxCanopyCD;
     public double CanopyDevEndCD;
+    public double HIendCD;
 }
