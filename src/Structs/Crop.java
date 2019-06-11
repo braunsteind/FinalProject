@@ -99,4 +99,5 @@ public class Crop {
     public double HIGC;
     public double CanopyDevEnd;
     public double MaxCanopyCD;
+    public double CanopyDevEndCD;
 }

@@ -57,4 +57,6 @@ public class InitCondStruct {
     public double CCadj_NS;
     public double AgeDays_NS;
     public double AgeDays;
+    public double sCor1;
+    public double sCor2;
 }
