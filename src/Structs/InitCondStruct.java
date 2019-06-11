@@ -59,4 +59,6 @@ public class InitCondStruct {
     public double AgeDays;
     public double sCor1;
     public double sCor2;
+    public double fpost_upp;
+    public double fpost_dwn;
 }
