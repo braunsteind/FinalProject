@@ -1,6 +1,6 @@
 package Structs;
 
 public class TAW {
-    public double Rz;
-    public double Zt;
+    public static double Rz;
+    public static double Zt;
 }
