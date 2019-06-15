@@ -27,7 +27,7 @@ public class AOS_Initialize {
 
         //Define initial conditions
         //TODO
-//        InitCondStruct initCondStruct = AOS_ReadModelInitialConditions(paramStruct, gwStruct, fieldMngtStruct, fileLocation);
+        InitCondStruct initCondStruct = AOS_ReadModelInitialConditions(paramStruct, gwStruct, fieldMngtStruct, fileLocation);
 
         //Pack output structure
         AOS_InitialiseStruct = new AOS_InitialiseStruct();
@@ -143,10 +143,211 @@ public class AOS_Initialize {
         }
     }
 
+    //Function to set up initial model conditions
     public InitCondStruct AOS_ReadModelInitialConditions(ParamStruct paramStruct, GwStruct
             gwStruct, FieldMngtStruct[] fieldMngtStruct, FileLocation fileLocation) {
-        //TODO
-        return null;
+        //Define initial conditions
+        InitCondStruct InitCondStruct = new InitCondStruct();
+
+        //Counters
+        InitCondStruct.AgeDays = 0;
+        InitCondStruct.AgeDays_NS = 0;
+        InitCondStruct.AerDays = 0;
+        InitCondStruct.IrrCum = 0;
+        InitCondStruct.DelayedGDDs = 0;
+        InitCondStruct.DelayedCDs = 0;
+        InitCondStruct.PctLagPhase = 0;
+        InitCondStruct.tEarlySen = 0;
+        InitCondStruct.GDDcum = 0;
+        InitCondStruct.DaySubmerged = 0;
+        InitCondStruct.IrrNetCum = 0;
+        InitCondStruct.DAP = 0;
+        InitCondStruct.Epot = 0;
+        InitCondStruct.Tpot = 0;
+
+        //States
+        InitCondStruct.PreAdj = false;
+        InitCondStruct.CropMature = false;
+        InitCondStruct.CropDead = false;
+        InitCondStruct.Germination = false;
+        InitCondStruct.PrematSenes = false;
+        InitCondStruct.HarvestFlag = false;
+
+        //Harvest index
+        InitCondStruct.Stage = 1;
+        InitCondStruct.Fpre = 1;
+        InitCondStruct.Fpost = 1;
+        InitCondStruct.fpost_dwn = 1;
+        InitCondStruct.fpost_upp = 1;
+        InitCondStruct.HIcor_Asum = 0;
+        InitCondStruct.HIcor_Bsum = 0;
+        InitCondStruct.Fpol = 0;
+        InitCondStruct.sCor1 = 0;
+        InitCondStruct.sCor2 = 0;
+
+        //Growth stage
+        InitCondStruct.GrowthStage = 0;
+
+        //Aeration stress (compartment level)
+        InitCondStruct.AerDaysComp = new double[paramStruct.soil.nComp];
+
+        //Transpiration
+        InitCondStruct.TrRatio = 1;
+
+        //Soil evaporation
+        InitCondStruct.Ke = paramStruct.soil.Kex;
+
+        //Crop growth
+        InitCondStruct.CC = 0;
+        InitCondStruct.CCadj = 0;
+        InitCondStruct.CC_NS = 0;
+        InitCondStruct.CCadj_NS = 0;
+        InitCondStruct.Zroot = 0;
+        InitCondStruct.B = 0;
+        InitCondStruct.B_NS = 0;
+        InitCondStruct.HI = 0;
+        InitCondStruct.HIadj = 0;
+        InitCondStruct.CCxAct = 0;
+        InitCondStruct.CCxAct_NS = 0;
+        InitCondStruct.CCxW = 0;
+        InitCondStruct.CCxW_NS = 0;
+        InitCondStruct.CCxEarlySen = 0;
+        InitCondStruct.CCprev = 0;
+        InitCondStruct.ProtectedSeed = false;
+        InitCondStruct.Kcb = 0;
+        InitCondStruct.Kcb_NS = 0;
+        InitCondStruct.rCor = 1;
+
+        if (clockStruct.SeasonCounter == 0) {
+            InitCondStruct.Zroot = 0;
+            InitCondStruct.CC0adj = 0;
+        } else if (clockStruct.SeasonCounter == 1) {
+            InitCondStruct.Zroot = paramStruct.crop[clockStruct.SeasonCounter - 1].Zmin;
+            InitCondStruct.CC0adj = paramStruct.crop[clockStruct.SeasonCounter - 1].CC0;
+        }
+
+        //Initial surface storage between any soil bunds
+        if (clockStruct.SeasonCounter == 0) {
+            //First day of simulation is in fallow period
+            //TODO
+        } else if (clockStruct.SeasonCounter == 1) {
+            //First day of simulation is in first growing season
+            //Get relevant field management structure parameters
+            FieldMngtStruct FieldMngtTmp = fieldMngtStruct[clockStruct.SeasonCounter];
+            if (FieldMngtTmp.Bunds.compareTo("Y") == 0 && FieldMngtTmp.zBund > 0.001) {
+                //Get initial storage between surface bunds
+                InitCondStruct.SurfaceStorage = FieldMngtTmp.BundWater;
+                if (InitCondStruct.SurfaceStorage > FieldMngtTmp.zBund) {
+                    InitCondStruct.SurfaceStorage = FieldMngtTmp.zBund;
+                }
+            } else {
+                //No surface bunds
+                InitCondStruct.SurfaceStorage = 0;
+            }
+        }
+
+        //Check for presence of groundwater table
+        if (gwStruct.WaterTable == 0) { //No water table present
+            //Set initial groundwater level to dummy value
+            InitCondStruct.zGW = -999;
+            InitCondStruct.WTinSoil = false;
+            //Set adjusted field capacity to default field capacity
+            InitCondStruct.th_fc_Adj = paramStruct.soil.comp.th_fc;
+        } else if (gwStruct.WaterTable == 1) { //Water table is present
+            //Set initial groundwater level
+            //TODO
+        }
+
+        //Define initial water contents
+        //Read input file
+        String Location = fileLocation.input;
+        String filename = Location.concat("\\" + fileLocation.initialWCFilename);
+        try {
+            //check the file exists
+            new FileReader(filename);
+        } catch (FileNotFoundException e) {
+            //Can't find text file defining soil initial water content
+            System.out.println(e.getMessage());
+            //Throw error message
+            return null;
+        }
+
+        //Load data
+        List<String> dataArray = new LinkedList<>();
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(new File(filename)));
+            String st;
+            while ((st = br.readLine()) != null) {
+                dataArray.add(st);
+            }
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+
+
+        String TypeStr = dataArray.get(1).split(",")[1];
+        String MethodStr = dataArray.get(2).split(",")[1];
+        //TODO check for input with more than one value
+        String[] Data_Pts = dataArray.get(5).split(",");
+
+        //Extract data
+        double[] Locs = new double[1];
+        Locs[0] = Double.valueOf(Data_Pts[0]);
+        double[] Vals = new double[(int) Locs[0]];
+        if (MethodStr.compareTo("Depth") == 0) {
+            for (int i = 0; i < Locs.length; i++) {
+                Locs[i] *= 100;
+            }
+            Locs = round(Locs);
+            for (int i = 0; i < Locs.length; i++) {
+                Locs[i] /= 100;
+            }
+        }
+
+        //Define soil compartment depths and layers
+        Integer[] SoilLayers = paramStruct.soil.comp.layer;
+        Double[] SoilDepths = cumsum(paramStruct.soil.comp.dz);
+        for (int i = 0; i < SoilDepths.length; i++) {
+            SoilDepths[i] *= 100;
+        }
+        SoilDepths = round(SoilDepths);
+        for (int i = 0; i < SoilDepths.length; i++) {
+            SoilDepths[i] /= 100;
+        }
+
+
+        //Assign data
+        if (TypeStr.compareTo("Num") == 0) {
+            //Values are defined as numbers (m3/m3) so no calculation required
+            //TODO
+        } else if (TypeStr.compareTo("Pct") == 0) {
+            //TODO
+        } else if (TypeStr.compareTo("Prop") == 0) {
+            //Values are specified as soil hydraulic properties (SAT, FC, or WP).
+            //Extract and assign value for each soil layer
+            String ValsTmp = Data_Pts[1];
+            for (int ii = 0; ii < ValsTmp.length(); ii++) {
+                if (MethodStr.compareTo("Depth") == 0) {
+                    //Find layer at specified depth
+                    //TODO
+                    if (Locs[ii] < SoilDepths[SoilDepths.length - 1]) {
+                    }
+                } else if (MethodStr.compareTo("Layer") == 0) {
+                    //Calculate moisture content at specified layer
+                    double LayTmp = Locs[ii];
+                    if (ValsTmp.compareTo("SAT") == 0) {
+                        //Calculate moisture content at specified layer
+                        Vals[ii] = paramStruct.soil.layer.th_s[(int) LayTmp];
+                    } else if (ValsTmp.compareTo("FC") == 0) {
+                        Vals[ii] = paramStruct.soil.layer.th_fc[(int) LayTmp];
+                    } else if (ValsTmp.compareTo("WP") == 0) {
+
+                    }
+                }
+            }
+        }
+
+        return InitCondStruct;
     }
 
     /**
@@ -199,7 +400,7 @@ public class AOS_Initialize {
             paramStruct.soil.layer.th_dry[0] = paramStruct.soil.layer.th_wp[0] / 2;
         }
 
-        paramStruct.soil.comp.th_fc = new Double[paramStruct.soil.nComp];
+        paramStruct.soil.comp.th_fc = new double[paramStruct.soil.nComp];
         //Assign field capacity values to each soil compartment
         for (int i = 0; i < paramStruct.soil.nComp; i++) {
             int layeri = paramStruct.soil.comp.layer[i];
@@ -587,6 +788,8 @@ public class AOS_Initialize {
         } catch (IOException e) {
             System.out.println(e.getMessage());
         }
+
+        //TODO
 
         return weatherDB;
     }
@@ -1149,6 +1352,15 @@ public class AOS_Initialize {
 
     private Double[] round(Double[] array) {
         Double[] newArray = new Double[array.length];
+        for (int i = 0; i < array.length; i++) {
+            Long temp = Math.round(array[i]);
+            newArray[i] = temp.doubleValue();
+        }
+        return newArray;
+    }
+
+    private double[] round(double[] array) {
+        double[] newArray = new double[array.length];
         for (int i = 0; i < array.length; i++) {
             Long temp = Math.round(array[i]);
             newArray[i] = temp.doubleValue();

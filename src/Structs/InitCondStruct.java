@@ -63,4 +63,8 @@ public class InitCondStruct {
     public double fpost_dwn;
     public double IrrNetCum;
     public boolean WTinSoil;
+    public double Stage;
+    public double HIcor_Asum;
+    public double HIcor_Bsum;
+    public double[] AerDaysComp;
 }
