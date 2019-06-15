@@ -61,4 +61,6 @@ public class InitCondStruct {
     public double sCor2;
     public double fpost_upp;
     public double fpost_dwn;
+    public double IrrNetCum;
+    public boolean WTinSoil;
 }

@@ -5,7 +5,7 @@ public class SoilWatOutStruct {
     public double DeepPerc;
     public double Runoff;
     public double Infl;
-    public double[] FluxOu;
+    public double[] FluxOut;
     public double CR;
     public double Es;
     public double EsPot;

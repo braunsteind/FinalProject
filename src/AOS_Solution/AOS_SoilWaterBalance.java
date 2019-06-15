@@ -71,6 +71,33 @@ public class AOS_SoilWaterBalance {
         NewCond = (InitCondStruct) a[3];
         double IrrNet = (double) a[4];
 
+        //Groundwater inflow
+        a = AOS_GroundwaterInflow(Soil, NewCond);
+        NewCond = (InitCondStruct) a[0];
+        double GwIn = (double) a[1];
+
+        //Check root zone water content
+        double Wr = AOS_RootZoneWater(Soil, Crop, NewCond);
+
+        SoilWatOutStruct SoilWatOut = new SoilWatOutStruct();
+        //Store water balance outputs
+        SoilWatOut.PreIrr = PreIrr;
+        SoilWatOut.DeepPerc = DeepPerc;
+        SoilWatOut.Runoff = Runoff;
+        SoilWatOut.Infl = Infl;
+        SoilWatOut.FluxOut = FluxOut;
+        SoilWatOut.CR = CR;
+        SoilWatOut.Es = Es;
+        SoilWatOut.EsPot = EsPot;
+        SoilWatOut.Tr = Tr;
+        SoilWatOut.TrPot_NS = TrPot_NS;
+        SoilWatOut.TrPot = TrPot;
+        SoilWatOut.IrrNet = IrrNet;
+        SoilWatOut.GwIn = GwIn;
+        SoilWatOut.Irr = Irr;
+        SoilWatOut.IrrNet = IrrNet;
+        SoilWatOut.Wr = Wr;
+
 
         return new Object[]{Crop, Soil};
     }
@@ -847,9 +874,106 @@ public class AOS_SoilWaterBalance {
             double Ks = min(Ksw.StoLin, Ksa);
             //Update potential transpiration in root zone
             if (IrrMngt.IrrMethod != 4) {
-
+                //No adjustment to TrPot for water stress when in net irrigation mode
+                TrPot = TrPot * Ks;
             }
+            //Determine compartments covered by root zone
+            //Compartments covered by the root zone
+            double rootdepth = max(NewCond.Zroot, Crop.Zmin);
+            rootdepth = round((100 * rootdepth)) / 100;
+            int sum = 0;
+            for (int i = 0; i < Soil.comp.dzsum.length; i++) {
+                if (Soil.comp.dzsum[i] < rootdepth) {
+                    sum++;
+                }
+            }
+            int comp_sto = min(sum + 1, Soil.nComp);
+            double[] RootFact = new double[Soil.nComp];
+            //Determine fraction of each compartment covered by root zone
+            for (int ii = 0; ii < comp_sto; ii++) {
+                if (Soil.comp.dzsum[ii] > rootdepth)
+                    RootFact[ii] = 1 - ((Soil.comp.dzsum[ii] - rootdepth) / Soil.comp.dz[ii]);
+                else
+                    RootFact[ii] = 1;
+            }
+
+            //Determine maximum sink term for each compartment
+            double[] SxComp = new double[Soil.nComp];
+            if (IrrMngt.IrrMethod == 4) {
+                //Net irrigation mode
+                for (int ii = 0; ii < comp_sto; ii++) {
+                    SxComp[ii] = (Crop.SxTop + Crop.SxBot) / 2;
+                }
+            } else {
+                //Maximum sink term declines linearly with depth
+                double SxCompBot = Crop.SxTop;
+                for (int ii = 0; ii < comp_sto; ii++) {
+                    double SxCompTop = SxCompBot;
+                    if (Soil.comp.dzsum[ii] <= rootdepth) {
+                        SxCompBot = Crop.SxBot * NewCond.rCor + ((Crop.SxTop - Crop.SxBot * NewCond.rCor) *
+                                ((rootdepth - Soil.comp.dzsum[ii]) / rootdepth));
+                    } else {
+                        SxCompBot = Crop.SxBot * NewCond.rCor;
+                    }
+                    SxComp[ii] = (SxCompTop + SxCompBot) / 2;
+                }
+            }
+            //Extract water
+            double ToExtract = TrPot;
+            double comp = 0;
+            TrAct = 0;
+
+            while ((ToExtract > 0) && (comp < comp_sto)) {
+                //TODO
+            }
+
+            //Add net irrigation water requirement (if this mode is specified)
+            if ((IrrMngt.IrrMethod == 4) && (TrPot > 0)) {
+                //TODO
+            } else if ((IrrMngt.IrrMethod == 4) && (TrPot <= 0)) {
+                //No net irrigation as potential transpiration is zero
+                IrrNet = 0;
+            } else {
+                // No net irrigation as not in net irrigation mode
+                IrrNet = 0;
+                NewCond.IrrNetCum = 0;
+            }
+
+            //Add any surface transpiration to root zone total
+            TrAct = TrAct + TrAct0;
+
+            //Feedback with canopy cover development
+            //If actual transpiration is zero then no canopy cover growth can occur
+            if (((NewCond.CC - NewCond.CCprev) > 0.005) && (TrAct == 0)) {
+                NewCond.CC = NewCond.CCprev;
+            }
+            //Update transpiration ratio
+            if (TrPot0 > 0) {
+                if (TrAct < TrPot0) {
+                    NewCond.TrRatio = TrAct / TrPot0;
+                } else {
+                    NewCond.TrRatio = 1;
+                }
+            } else {
+                NewCond.TrRatio = 1;
+            }
+            if (NewCond.TrRatio < 0) {
+                NewCond.TrRatio = 0;
+            } else if (NewCond.TrRatio > 1) {
+                NewCond.TrRatio = 1;
+            }
+        } else {
+            //No transpiration if not in growing season
+            TrAct = 0;
+            TrPot0 = 0;
+            TrPotNS = 0;
+            //No irrigation if not in growing season
+            IrrNet = 0;
+            NewCond.IrrNetCum = 0;
         }
+
+        //Store potential transpiration for irrigation calculations on next day
+        NewCond.Tpot = TrPot0;
 
         return new Object[]{TrAct, TrPotNS, TrPot0, NewCond, IrrNet};
     }
@@ -874,5 +998,138 @@ public class AOS_SoilWaterBalance {
         }
 
         return new Object[]{Ksa, NewCond};
+    }
+
+    //Function to calculate capillary rise in the presence of a shallow groundwater table
+    private static Object[] AOS_GroundwaterInflow(Soil Soil, InitCondStruct InitCond) {
+        //Store initial conditions for updating
+        InitCondStruct NewCond = InitCond;
+        double GwIn = 0;
+
+        //Perform calculations
+        if (NewCond.WTinSoil) {
+            //TODO
+        }
+
+        return new Object[]{NewCond, GwIn};
+    }
+
+    //Function to calculate actual and total available water in the root zone at current time step
+    private static double AOS_RootZoneWater(Soil Soil, Crop Crop, InitCondStruct InitCond) {
+        //Calculate root zone water content and available water
+        //Compartments covered by the root zone
+        double rootdepth = max(InitCond.Zroot, Crop.Zmin);
+        rootdepth = round((rootdepth * 100)) / 100;
+        int sum = 0;
+        for (int i = 0; i < Soil.comp.dzsum.length; i++) {
+            if (Soil.comp.dzsum[i] < rootdepth) {
+                sum++;
+            }
+        }
+        int comp_sto = min(sum + 1, Soil.nComp);
+
+        //Initialise counters
+        double WrAct = 0;
+        double WrS = 0;
+        double WrFC = 0;
+        double WrWP = 0;
+        double WrDry = 0;
+        double WrAer = 0;
+
+        for (int ii = 0; ii < comp_sto; ii++) {
+            //Specify layer
+            int layeri = Soil.comp.layer[ii];
+            //Fraction of compartment covered by root zone
+            double factor;
+            if (Soil.comp.dzsum[ii] > rootdepth) {
+                factor = 1 - ((Soil.comp.dzsum[ii] - rootdepth) / Soil.comp.dz[ii]);
+            } else {
+                factor = 1;
+            }
+            //Actual water storage in root zone (mm)
+            WrAct = WrAct + (factor * 1000 * InitCond.th[ii] * Soil.comp.dz[ii]);
+            //Water storage in root zone at saturation (mm)
+            WrS = WrS + (factor * 1000 * Soil.layer.th_s[layeri] * Soil.comp.dz[ii]);
+            //Water storage in root zone at field capacity (mm)
+            WrFC = WrFC + (factor * 1000 * Soil.layer.th_fc[layeri] * Soil.comp.dz[ii]);
+            //Water storage in root zone at permanent wilting point (mm)
+            WrWP = WrWP + (factor * 1000 * Soil.layer.th_wp[layeri] * Soil.comp.dz[ii]);
+            //Water storage in root zone at air dry (mm)
+            WrDry = WrDry + (factor * 1000 * Soil.layer.th_dry[layeri] * Soil.comp.dz[ii]);
+            //Water storage in root zone at aeration stress threshold (mm)
+            WrAer = WrAer + (factor * 1000 * (Soil.layer.th_s[layeri] - (Crop.Aer / 100)) * Soil.comp.dz[ii]);
+        }
+
+        if (WrAct < 0)
+            WrAct = 0;
+
+        //Calculate total available water (m3/m3)
+        TAW.Rz = max(WrFC - WrWP, 0);
+        //Calculate soil water depletion (mm)
+        Dr.Rz = min(WrFC - WrAct, TAW.Rz);
+
+        thRZStruct thRZ = new thRZStruct();
+        //Actual root zone water content (m3/m3)
+        thRZ.Act = WrAct / (rootdepth * 1000);
+        //Root zone water content at saturation (m3/m3)
+        thRZ.S = WrS / (rootdepth * 1000);
+        //Root zone water content at field capacity (m3/m3)
+        thRZ.FC = WrFC / (rootdepth * 1000);
+        //Root zone water content at permanent wilting point (m3/m3)
+        thRZ.WP = WrWP / (rootdepth * 1000);
+        //Root zone water content at air dry (m3/m3)
+        thRZ.Dry = WrDry / (rootdepth * 1000);
+        //Root zone water content at aeration stress threshold (m3/m3)
+        thRZ.Aer = WrAer / (rootdepth * 1000);
+
+        //Calculate top soil water content and available water
+        if (rootdepth > Soil.zTop) {
+            //Determine compartments covered by the top soil
+            double ztopdepth = Soil.zTop;
+            ztopdepth = round((ztopdepth * 100)) / 100;
+            sum = 0;
+            for (int i = 0; i < Soil.comp.dzsum.length; i++) {
+                if (Soil.comp.dzsum[i] < ztopdepth) {
+                    sum++;
+                }
+            }
+            comp_sto = sum + 1;
+
+            //Initialise counters
+            double WrAct_Zt = 0;
+            double WrFC_Zt = 0;
+            double WrWP_Zt = 0;
+            //Calculate water storage in top soil
+            for (int ii = 0; ii < comp_sto; ii++) {
+                //Specify layer
+                int layeri = Soil.comp.layer[ii];
+                //Fraction of compartment covered by root zone
+                double factor;
+                if (Soil.comp.dzsum[ii] > ztopdepth) {
+                    factor = 1 - ((Soil.comp.dzsum[ii] - ztopdepth) / Soil.comp.dz[ii]);
+                } else {
+                    factor = 1;
+                }
+                //Actual water storage in top soil (mm)
+                WrAct_Zt = WrAct_Zt + (factor * 1000 * InitCond.th[ii] * Soil.comp.dz[ii]);
+                //Water storage in top soil at field capacity (mm)
+                WrFC_Zt = WrFC_Zt + (factor * 1000 * Soil.layer.th_fc[layeri] * Soil.comp.dz[ii]);
+                //Water storage in top soil at permanent wilting point (mm)
+                WrWP_Zt = WrWP_Zt + (factor * 1000 * Soil.layer.th_wp[layeri] * Soil.comp.dz[ii]);
+            }
+            //Ensure available water in top soil is not less than zero
+            if (WrAct_Zt < 0)
+                WrAct_Zt = 0;
+            //Calculate total available water in top soil (m3/m3)
+            TAW.Zt = max(WrFC_Zt - WrWP_Zt, 0);
+            //Calculate depletion in top soil (mm)
+            Dr.Zt = min(WrFC_Zt - WrAct_Zt, TAW.Zt);
+        } else {
+            //Set top soil depletions and TAW to root zone values
+            Dr.Zt = Dr.Rz;
+            TAW.Zt = TAW.Rz;
+        }
+
+        return WrAct;
     }
 }

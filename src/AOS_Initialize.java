@@ -11,7 +11,7 @@ import java.util.List;
 public class AOS_Initialize {
 
     public static final int MILLISECONDS_IN_DAY = 86400000;
-    public static final int DATE_ADD = 719530;
+    public static final int DATE_ADD = 719500;
     public ClockStruct clockStruct;
     public AOS_InitialiseStruct AOS_InitialiseStruct;
 
@@ -182,7 +182,8 @@ public class AOS_Initialize {
 
             String[] split = dataArray.get(1).split(",");
             //Assign data
-            paramStruct.soil.layer.dz = Double.parseDouble(split[1]);
+            paramStruct.soil.layer.dz = new double[paramStruct.soil.nComp];
+            paramStruct.soil.layer.dz[0] = Double.parseDouble(split[1]);
             paramStruct.soil.layer.th_s = new double[paramStruct.soil.nComp];
             paramStruct.soil.layer.th_s[0] = Double.parseDouble(split[2]);
             paramStruct.soil.layer.th_fc = new double[paramStruct.soil.nComp];
@@ -191,7 +192,8 @@ public class AOS_Initialize {
             paramStruct.soil.layer.th_wp[0] = Double.parseDouble(split[4]);
             paramStruct.soil.layer.Ksat = new double[paramStruct.soil.nComp];
             paramStruct.soil.layer.Ksat[0] = Double.parseDouble(split[5]);
-            paramStruct.soil.layer.Penetrability = Double.parseDouble(split[6]);
+            paramStruct.soil.layer.Penetrability = new double[paramStruct.soil.nComp];
+            paramStruct.soil.layer.Penetrability[0] = Double.parseDouble(split[6]);
             //Calculate additional variables
             paramStruct.soil.layer.th_dry = new double[paramStruct.soil.nComp];
             paramStruct.soil.layer.th_dry[0] = paramStruct.soil.layer.th_wp[0] / 2;
@@ -980,6 +982,8 @@ public class AOS_Initialize {
             paramStruct.crop[i].fsink /= 100; //Convert from %
         }
 
+        double[] PlantDates = new double[1];
+        double[] HarvestDates = new double[1];
         //Find planting and harvest dates
         if (nCrops > 1 || Rotation.compareTo("Y") == 0) {
             //Crop rotation occurs during the simulation period
@@ -1007,7 +1011,7 @@ public class AOS_Initialize {
             }
             //Extract data
             //TODO
-            String[] PlantDates = new String[1];
+//                PlantDates = datenum(DataArray{1,1},'dd/mm/yyyy');
 //                String HarvestDates = datenum(DataArray{1,2},'dd/mm/yyyy');
 //                int CropChoices = DataArray{1,3};
         } else if (nCrops == 1) {
@@ -1023,46 +1027,51 @@ public class AOS_Initialize {
             //Does growing season extend across multiple calendar years
             int[] PlantDatesSplit = {Integer.parseInt(CropTemp.PlantingDate.split("/")[0]), Integer.parseInt(CropTemp.PlantingDate.split("/")[1])};
             int[] HarvestDateSplit = {Integer.parseInt(CropTemp.HarvestDate.split("/")[0]), Integer.parseInt(CropTemp.HarvestDate.split("/")[1])};
+            String[] YrsPlant = new String[1];
+            String[] YrsHarvest = new String[1];
             if (PlantDatesSplit[1] < HarvestDateSplit[1] || (PlantDatesSplit[1] == HarvestDateSplit[1] && PlantDatesSplit[0] < HarvestDateSplit[0])) {
                 ArrayList<String> YrsPlantTemp = new ArrayList<>();
                 for (int i = Integer.parseInt(SimStaDate[0]); i <= Integer.parseInt(SimEndDate[0]); i++) {
                     YrsPlantTemp.add(String.valueOf(i));
                 }
-                String[] YrsPlant = YrsPlantTemp.toArray(new String[YrsPlantTemp.size()]);
-                String[] YrsHarvest = YrsPlant.clone();
+                YrsPlant = YrsPlantTemp.toArray(new String[YrsPlantTemp.size()]);
+                YrsHarvest = YrsPlant.clone();
             } else {
+                //TODO
 //                YrsPlant = SimStaDate(1):SimEndDate(1) - 1;
 //                YrsHarvest = SimStaDate(1) + 1:SimEndDate(1);
             }
 //            Correct for partial first growing season (may occur when simulating
 //            off-season soil water balance)
-//            if (datenum(strcat(CropTemp.PlantingDate, '/', num2str(YrsPlant(1))), 'dd/mm/yyyy') < clockStruct.SimulationStartDate) {
-//                    YrsPlant = YrsPlant(2:end);
-//                    YrsHarvest = YrsHarvest(2:end);
-//            }
+            //datenum(strcat(CropTemp.PlantingDate, '/', num2str(YrsPlant(1))), 'dd/mm/yyyy') < clockStruct.SimulationStartDate
+            if (false) {
+                //TODO
+//                YrsPlant = YrsPlant(2:end);
+//                YrsHarvest = YrsHarvest(2:end);
+            }
             //Define blank variables
-//            PlantDates = zeros(length(YrsPlant), 1);
-//            HarvestDates = zeros(length(YrsHarvest), 1);
-            Crop CropChoices;
+            PlantDates = new double[YrsPlant.length];
+            HarvestDates = new double[YrsHarvest.length];
+            String[] CropChoices = new String[YrsPlant.length];
             //Determine planting and harvest dates
-//            for (int ii = 0; ii < YrsPlant; ii++) {
-//                    PlantDates(ii) = datenum(strcat(CropTemp.PlantingDate, '/', num2str(YrsPlant(ii))), 'dd/mm/yyyy');
-//                    HarvestDates(ii) = datenum(strcat(CropTemp.HarvestDate, '/', num2str(YrsHarvest(ii))), 'dd/mm/yyyy');
-//                //TODO check it
-//                CropChoices = paramStruct.crop;
-//            }
+            for (int ii = 0; ii < YrsPlant.length; ii++) {
+                PlantDates[ii] = clockStruct.SimulationStartDate;
+                HarvestDates[ii] = clockStruct.SimulationEndDate;
+                //TODO check it
+                CropChoices[ii] = CropInfo[0];
+            }
         }
-//        //Update clock parameters %%
-//        //Store planting and harvest dates
-//        clockStruct.PlantingDate = PlantDates;
-//        clockStruct.HarvestDate = HarvestDates;
-//        clockStruct.nSeasons = PlantDates.length;
+        //Update clock parameters
+        //Store planting and harvest dates
+        clockStruct.PlantingDate = PlantDates;
+        clockStruct.HarvestDate = HarvestDates;
+        clockStruct.nSeasons = PlantDates.length;
 //        //Initialise growing season counter
-//        if (clockStruct.StepStartTime == clockStruct.PlantingDate[0]) {
-//            clockStruct.SeasonCounter = 1;
-//        } else {
-//            clockStruct.SeasonCounter = 0;
-//        }
+        if (clockStruct.StepStartTime == clockStruct.PlantingDate[0]) {
+            clockStruct.SeasonCounter = 1;
+        } else {
+            clockStruct.SeasonCounter = 0;
+        }
         return paramStruct;
     }
 

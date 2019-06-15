@@ -231,8 +231,8 @@ public class AOS_SetupSolution {
         //Check if in growing season
         if (AOS_ClockStruct.SeasonCounter > 0) {
             int CurrentDate = AOS_ClockStruct.StepStartTime;
-            int PlantingDate = AOS_ClockStruct.PlantingDate;
-            int HarvestDate = AOS_ClockStruct.HarvestDate;
+            double PlantingDate = AOS_ClockStruct.PlantingDate[AOS_ClockStruct.SeasonCounter];
+            double HarvestDate = AOS_ClockStruct.HarvestDate[AOS_ClockStruct.SeasonCounter];
 
             return (CurrentDate >= PlantingDate) && (CurrentDate <= HarvestDate) && (!InitCond.CropMature) && (!InitCond.CropDead);
         }
