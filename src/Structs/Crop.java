@@ -91,8 +91,8 @@ public class Crop {
     public double dHILinear;
     public double fCO2;
 
-    public int MaxCanopy;
-    public int Canopy10Pct;
+    public double MaxCanopy;
+    public double Canopy10Pct;
     public int HIstartCD;
     public int YldFormCD;
     public int FloweringCD;
@@ -100,5 +100,7 @@ public class Crop {
     public double CanopyDevEnd;
     public double MaxCanopyCD;
     public double CanopyDevEndCD;
-    public double HIendCD;
+    public int HIendCD;
+    public double HIend;
+    public double FloweringEnd;
 }

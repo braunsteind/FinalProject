@@ -67,4 +67,5 @@ public class InitCondStruct {
     public double HIcor_Asum;
     public double HIcor_Bsum;
     public double[] AerDaysComp;
+    public double[] thini;
 }

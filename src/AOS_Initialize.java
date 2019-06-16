@@ -10,8 +10,8 @@ import java.util.List;
 
 public class AOS_Initialize {
 
-    public static final int MILLISECONDS_IN_DAY = 86400000;
-    public static final int DATE_ADD = 719500;
+    public static final int MILLISECONDS_IN_DAY = 86400030;
+    public static final int DATE_ADD = 719530;
     public ClockStruct clockStruct;
     public AOS_InitialiseStruct AOS_InitialiseStruct;
 
@@ -26,7 +26,6 @@ public class AOS_Initialize {
         paramStruct = AOS_ComputeVariables(paramStruct, WeatherStruct, clockStruct, gwStruct, fileLocation);
 
         //Define initial conditions
-        //TODO
         InitCondStruct initCondStruct = AOS_ReadModelInitialConditions(paramStruct, gwStruct, fieldMngtStruct, fileLocation);
 
         //Pack output structure
@@ -35,8 +34,7 @@ public class AOS_Initialize {
         AOS_InitialiseStruct.IrrigationManagement = irrMngtStruct;
         AOS_InitialiseStruct.FieldManagement = fieldMngtStruct;
         AOS_InitialiseStruct.Groundwater = gwStruct;
-        //TODO
-//        AOS_InitialiseStruct.InitialCondition = initCondStruct;
+        AOS_InitialiseStruct.InitialCondition = initCondStruct;
         AOS_InitialiseStruct.CropChoices = paramStruct.crop;
         AOS_InitialiseStruct.Weather = WeatherStruct;
         AOS_InitialiseStruct.FileLocation = fileLocation;
@@ -326,7 +324,9 @@ public class AOS_Initialize {
             //Values are specified as soil hydraulic properties (SAT, FC, or WP).
             //Extract and assign value for each soil layer
             String ValsTmp = Data_Pts[1];
-            for (int ii = 0; ii < ValsTmp.length(); ii++) {
+            //TODO change to ValsTmp array
+            for (int ii = 0; ii < 1; ii++) {
+                int s = ValsTmp.length();
                 if (MethodStr.compareTo("Depth") == 0) {
                     //Find layer at specified depth
                     //TODO
@@ -337,15 +337,49 @@ public class AOS_Initialize {
                     double LayTmp = Locs[ii];
                     if (ValsTmp.compareTo("SAT") == 0) {
                         //Calculate moisture content at specified layer
-                        Vals[ii] = paramStruct.soil.layer.th_s[(int) LayTmp];
+                        Vals[ii] = paramStruct.soil.layer.th_s[(int) LayTmp - 1];
                     } else if (ValsTmp.compareTo("FC") == 0) {
-                        Vals[ii] = paramStruct.soil.layer.th_fc[(int) LayTmp];
+                        Vals[ii] = paramStruct.soil.layer.th_fc[(int) LayTmp - 1];
                     } else if (ValsTmp.compareTo("WP") == 0) {
-
+                        Vals[ii] = paramStruct.soil.layer.th_wp[(int) LayTmp - 1];
                     }
                 }
             }
         }
+
+        //Interpolate values to all soil compartments
+        double[] thini = new double[paramStruct.soil.nComp];
+        if (MethodStr.compareTo("Layer") == 0) {
+            for (int ii = 0; ii < Vals.length; ii++) {
+                for (int j = 0; j < paramStruct.soil.comp.layer.length; j++) {
+                    if (paramStruct.soil.comp.layer[j] == Locs[ii]) {
+                        thini[j] = Vals[ii];
+                    }
+                }
+            }
+            InitCondStruct.th = thini;
+        } else if (MethodStr.compareTo("Depth") == 0) {
+            //Add zero point
+            if (Locs[0] > 0) {
+                //TODO
+            }
+        }
+
+        //If groundwater table is present and calculating water contents based on field capacity,
+        // then reset value to account for possible changes in field capacity caused by capillary rise effects
+        if (gwStruct.WaterTable == 1) {
+            //TODO
+        }
+
+        //If groundwater table is present in soil profile then set all water
+        // contents below the water table to saturation
+        if (InitCondStruct.WTinSoil) {
+            //Find compartment mid-points
+            Double[] zBot = cumsum(paramStruct.soil.comp.dz);
+            //TODO
+        }
+
+        InitCondStruct.thini = InitCondStruct.th;
 
         return InitCondStruct;
     }
@@ -488,7 +522,7 @@ public class AOS_Initialize {
 
             //Crop calendar
             //TODO
-//            paramStruct.crop[i] = AOS_ComputeCropCalendar(paramStruct.crop[i], WeatherStruct);
+            paramStruct.crop[i] = AOS_ComputeCropCalendar(paramStruct.crop[i], WeatherStruct);
 
             //Harvest index growth coefficient
             //TODO
@@ -602,9 +636,145 @@ public class AOS_Initialize {
         return paramStruct;
     }
 
-    private Crop AOS_ComputeCropCalendar(Crop crop, double[][] Weather) {
-        //TODO
-        return null;
+    //Function to compute additional parameters needed to define crop phenological calendar
+    private Crop AOS_ComputeCropCalendar(Crop Crop, double[][] Weather) {
+        //Define crop calendar mode
+        double Mode = Crop.CalendarType;
+
+        //Calculate variables
+        if (Mode == 1) { //Growth in calendar days
+            //Time from sowing to end of vegatative growth period
+            if (Crop.Determinant == 1) {
+                Crop.CanopyDevEnd = Math.round(Crop.HIstart + (Crop.Flowering / 2));
+            } else {
+                Crop.CanopyDevEnd = Crop.Senescence;
+            }
+
+            //Time from sowing to 10% canopy cover (non-stressed conditions)
+            Crop.Canopy10Pct = Math.round(Crop.Emergence + (Math.log(0.1 / Crop.CC0) / Crop.CGC));
+
+            //Time from sowing to maximum canopy cover (non-stressed conditions)
+            //TODO
+        } else if (Mode == 2) { //Growth in growing degree days
+            //Time from sowing to end of vegatative growth period
+            if (Crop.Determinant == 1) {
+                Crop.CanopyDevEnd = Math.round(Crop.HIstart + (Crop.Flowering / 2));
+            } else {
+                Crop.CanopyDevEnd = Crop.Senescence;
+            }
+
+            //Time from sowing to 10% canopy cover (non-stressed conditions)
+            Crop.Canopy10Pct = Math.round(Crop.Emergence + (Math.log(0.1 / Crop.CC0) / Crop.CGC));
+
+            //Time from sowing to maximum canopy cover (non-stressed conditions)
+            Crop.MaxCanopy = Math.round(Crop.Emergence + (Math.log((0.25 * Crop.CCx * Crop.CCx / Crop.CC0) /
+                    (Crop.CCx - (0.98 * Crop.CCx))) / Crop.CGC));
+
+            //Time from sowing to end of yield formation
+            Crop.HIend = Crop.HIstart + Crop.YldForm;
+
+            //Time from sowing to end of flowering (if fruit/grain crop)
+            if (Crop.CropType == 3) {
+                Crop.FloweringEnd = Crop.HIstart + Crop.Flowering;
+            }
+
+            //Additional variables
+            //Extract weather data for first growing season that crop is planted
+            //TODO check it
+//            idx = find(strcmp(CropChoices,CropName)==1,1);
+            double tSta = clockStruct.PlantingDate[0];
+            double tSto = clockStruct.HarvestDate[0];
+            double[] Dates = new double[Weather.length];
+            for (int i = 0; i < Dates.length; i++) {
+                Dates[i] = Weather[i][0];
+            }
+            int StaRow = 0, StoRow = 0;
+            for (int i = 0; i < Dates.length; i++) {
+                if (Dates[i] == tSta) {
+                    StaRow = i;
+                }
+                if (Dates[i] == tSto) {
+                    StoRow = i;
+                }
+            }
+            double[] Tmin = new double[(StoRow - StaRow) + 1];
+            double[] Tmax = new double[(StoRow - StaRow) + 1];
+            for (int i = 0; i <= StoRow - StaRow; i++) {
+                Tmin[i] = Weather[i][1];
+                Tmax[i] = Weather[i][2];
+            }
+            //Calculate GDD's
+            double[] GDD = new double[0];
+            if (Crop.GDDmethod == 1) {
+                //TODO
+            } else if (Crop.GDDmethod == 2) {
+                for (int i = 0; i < Tmax.length; i++) {
+                    if (Tmax[i] > Crop.Tupp) {
+                        Tmax[i] = Crop.Tupp;
+                    }
+                    if (Tmax[i] < Crop.Tbase) {
+                        Tmax[i] = Crop.Tbase;
+                    }
+                    if (Tmin[i] > Crop.Tupp) {
+                        Tmin[i] = Crop.Tupp;
+                    }
+                    if (Tmin[i] < Crop.Tbase) {
+                        Tmin[i] = Crop.Tbase;
+                    }
+                }
+                double[] Tmean = new double[Tmax.length];
+                GDD = new double[Tmean.length];
+                for (int i = 0; i < Tmean.length; i++) {
+                    Tmean[i] = (Tmax[i] + Tmin[i]) / 2;
+                    GDD[i] = Tmean[i] - Crop.Tbase;
+                }
+
+            } else if (Crop.GDDmethod == 3) {
+                //TODO
+            }
+            double[] GDDcum = cumsum(GDD);
+
+            //Find calendar days for some variables
+            boolean set1 = false, set2 = false, set3 = false, set4 = false;
+            for (int i = 0; i < GDDcum.length; i++) {
+                //1. Calendar days from sowing to maximum canopy cover
+                if (GDDcum[i] > Crop.MaxCanopy && !set1) {
+                    Crop.MaxCanopyCD = i;
+                    set1 = true;
+                }
+                //1. Calendar days from sowing to end of vegetative growth
+                if (GDDcum[i] > Crop.CanopyDevEnd && !set2) {
+                    Crop.CanopyDevEndCD = i;
+                    set2 = true;
+                }
+                //2. Calendar days from sowing to start of yield formation
+                if (GDDcum[i] > Crop.HIstart && !set3) {
+                    Crop.HIstartCD = i;
+                    set3 = true;
+                }
+                //3. Calendar days from sowing to end of yield formation
+                if (GDDcum[i] > Crop.HIend && !set4) {
+                    Crop.HIendCD = i;
+                    set4 = true;
+                }
+            }
+            //4. Duration of yield formation in calendar days
+            Crop.YldFormCD = Crop.HIendCD - Crop.HIstartCD;
+
+            if (Crop.CropType == 3) {
+                //1. Calendar days from sowing to end of flowering
+                int FloweringEnd = 0;
+                for (int i = 0; i < GDDcum.length; i++) {
+                    if (GDDcum[i] > Crop.FloweringEnd) {
+                        FloweringEnd = i;
+                        break;
+                    }
+                }
+                //2. Duration of flowering in calendar days
+                Crop.FloweringCD = FloweringEnd - Crop.HIstartCD;
+            }
+        }
+        return Crop;
     }
 
 
@@ -760,7 +930,7 @@ public class AOS_Initialize {
      * Function to read and process input weather time-series
      */
     private double[][] AOS_ReadWeatherInputs(FileLocation fileLocation, ClockStruct clockStruct) {
-        double[][] weatherDB = new double[clockStruct.nSteps][5];
+        double[][] weatherDB = new double[(clockStruct.SimulationEndDate - clockStruct.SimulationStartDate) + 1][5];
 
         //Read input file location
         String location = fileLocation.input;
@@ -789,7 +959,16 @@ public class AOS_Initialize {
             System.out.println(e.getMessage());
         }
 
-        //TODO
+        //Extract data
+        //TODO find out how to calculate StartRow and EndRow
+        int StartRow = 11809, EndRow = 11991;
+        for (int i = 0; i <= clockStruct.SimulationEndDate - clockStruct.SimulationStartDate; i++) {
+            weatherDB[i][0] = clockStruct.SimulationStartDate + i;
+            weatherDB[i][1] = Double.parseDouble(dataArray.get(StartRow + i).split(",")[3]);
+            weatherDB[i][2] = Double.parseDouble(dataArray.get(StartRow + i).split(",")[4]);
+            weatherDB[i][3] = Double.parseDouble(dataArray.get(StartRow + i).split(",")[5]);
+            weatherDB[i][4] = Double.parseDouble(dataArray.get(StartRow + i).split(",")[6]);
+        }
 
         return weatherDB;
     }
@@ -1259,7 +1438,8 @@ public class AOS_Initialize {
             //Determine planting and harvest dates
             for (int ii = 0; ii < YrsPlant.length; ii++) {
                 PlantDates[ii] = clockStruct.SimulationStartDate;
-                HarvestDates[ii] = clockStruct.SimulationEndDate;
+                //TODO check why -30
+                HarvestDates[ii] = clockStruct.SimulationEndDate - 30;
                 //TODO check it
                 CropChoices[ii] = CropInfo[0];
             }
@@ -1335,6 +1515,16 @@ public class AOS_Initialize {
     private Double[] cumsum(Double[] in) {
         Double[] out = new Double[in.length];
         Double total = 0.0;
+        for (int i = 0; i < in.length; i++) {
+            total += in[i];
+            out[i] = total;
+        }
+        return out;
+    }
+
+    private double[] cumsum(double[] in) {
+        double[] out = new double[in.length];
+        double total = 0.0;
         for (int i = 0; i < in.length; i++) {
             total += in[i];
             out[i] = total;
