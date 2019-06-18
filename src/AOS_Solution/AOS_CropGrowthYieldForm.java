@@ -1102,7 +1102,7 @@ public class AOS_CropGrowthYieldForm {
             // No root system outside of the growing season
             NewCond.Zroot = 0;
         }
-        return null;
+        return NewCond;
     }
 
 

@@ -58,7 +58,7 @@ class Common {
         TAW TAW = new TAW();
         TAW.Rz = max(WrFC - WrWP, 0);
         //Calculate soil water depletion (mm)
-        TAW Dr = new TAW();
+        Dr Dr = new Dr();
         Dr.Rz = min(WrFC - WrAct, TAW.Rz);
 
         thRZStruct thRZ = new thRZStruct();
@@ -122,7 +122,7 @@ class Common {
             TAW.Zt = TAW.Rz;
         }
 
-        return new Object[]{Dr, TAW, thRZ};
+        return new Object[]{WrAct, Dr, TAW, thRZ};
     }
 
     //Function to calculate water stress coefficients

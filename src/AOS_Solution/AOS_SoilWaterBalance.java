@@ -99,7 +99,7 @@ public class AOS_SoilWaterBalance {
         SoilWatOut.Wr = Wr;
 
 
-        return new Object[]{Crop, Soil};
+        return new Object[]{NewCond, SoilWatOut};
     }
 
     //Function to check for presence of a groundwater table, and, if present,
@@ -326,9 +326,9 @@ public class AOS_SoilWaterBalance {
         if (GrowingSeason) {
             //Calculate root zone water content and depletion
             Object[] a = Common.AOS_RootZoneWater(Soil, Crop, NewCond);
-            TAW DrReturn = (TAW) a[0];
-            TAW TAWReturn = (TAW) a[1];
-            thRZStruct thRZ = (thRZStruct) a[2];
+            Dr DrReturn = (Dr) a[1];
+            TAW TAWReturn = (TAW) a[2];
+            thRZStruct thRZ = (thRZStruct) a[3];
             //Use root zone depletions and TAW only for triggering irrigation
             double Dr = DrReturn.Rz;
             double TAW = TAWReturn.Rz;
@@ -846,9 +846,9 @@ public class AOS_SoilWaterBalance {
             //Update potential root zone transpiration for water stress
             //Determine root zone and top soil depletion, and root zone water content
             Object[] a = Common.AOS_RootZoneWater(Soil, Crop, NewCond);
-            TAW DrReturn = (TAW) a[0];
-            TAW TAWReturn = (TAW) a[1];
-            thRZStruct thRZ = (thRZStruct) a[2];
+            Dr DrReturn = (Dr) a[1];
+            TAW TAWReturn = (TAW) a[2];
+            thRZStruct thRZ = (thRZStruct) a[3];
 
             //Check whether to use root zone or top soil depletions for calculating water stress
             double Dr = 0, TAW = 0;
