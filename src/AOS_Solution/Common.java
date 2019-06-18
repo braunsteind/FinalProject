@@ -10,7 +10,7 @@ class Common {
         //Calculate root zone water content and available water
         //Compartments covered by the root zone
         double rootdepth = max(InitCond.Zroot, Crop.Zmin);
-        rootdepth = round((rootdepth * 100)) / 100;
+        rootdepth = round(rootdepth * 100) / 100.0;
         int sum = 0;
         for (int i = 0; i < Soil.comp.dzsum.length; i++) {
             if (Soil.comp.dzsum[i] < rootdepth) {
@@ -29,7 +29,7 @@ class Common {
         double factor;
         for (int ii = 0; ii < comp_sto; ii++) {
             //Specify layer
-            int layeri = Soil.comp.layer[ii];
+            int layeri = Soil.comp.layer[ii] - 1;
             //Fraction of compartment covered by root zone
             if (Soil.comp.dzsum[ii] > rootdepth) {
                 factor = 1 - ((Soil.comp.dzsum[ii] - rootdepth) / Soil.comp.dz[ii]);
@@ -37,6 +37,7 @@ class Common {
                 factor = 1;
             }
             //Actual water storage in root zone (mm)
+            double z = factor * 1000 * InitCond.th[ii] * Soil.comp.dz[ii];
             WrAct = WrAct + (factor * 1000 * InitCond.th[ii] * Soil.comp.dz[ii]);
             //Water storage in root zone at saturation (mm)
             WrS = WrS + (factor * 1000 * Soil.layer.th_s[layeri] * Soil.comp.dz[ii]);
@@ -48,6 +49,7 @@ class Common {
             WrDry = WrDry + (factor * 1000 * Soil.layer.th_dry[layeri] * Soil.comp.dz[ii]);
             // Water storage in root zone at aeration stress threshold (mm)
             WrAer = WrAer + (factor * 1000 * (Soil.layer.th_s[layeri] - (Crop.Aer / 100)) * Soil.comp.dz[ii]);
+            int x = 5;
         }
         if (WrAct < 0) {
             WrAct = 0;

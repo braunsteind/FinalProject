@@ -1504,6 +1504,9 @@ public class AOS_Initialize {
             irrMngtStruct.NetIrrSMT = Integer.parseInt(dataArray.get(10).split(",")[1]);
             irrMngtStruct.WetSurf = Integer.parseInt(dataArray.get(11).split(",")[1]);
 
+            //Consolidate soil moisture targets in to one variable
+            irrMngtStruct.SMT = new double[]{irrMngtStruct.SMT1, irrMngtStruct.SMT2, irrMngtStruct.SMT3, irrMngtStruct.SMT4};
+
             if (irrMngtStruct.IrrMethod == 3) {
                 //TODO
             }

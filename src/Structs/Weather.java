@@ -5,5 +5,5 @@ public class Weather {
     public double Tmax;
     public double Precip;
     public double RefET;
-    public int GDD;
+    public double GDD;
 }

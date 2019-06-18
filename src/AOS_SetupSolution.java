@@ -17,7 +17,7 @@ public class AOS_SetupSolution {
         FieldMngtStruct FieldMngt = new FieldMngtStruct();
         Crop Crop;
         if (AOS_ClockStruct.SeasonCounter > 0) {
-            Crop = AOS_InitialiseStruct.Parameter.crop[AOS_ClockStruct.SeasonCounter];
+            Crop = AOS_InitialiseStruct.Parameter.crop[AOS_ClockStruct.SeasonCounter - 1];
             IrrMngt = AOS_InitialiseStruct.IrrigationManagement;
 
             if (GrowingSeason) {
@@ -213,7 +213,7 @@ public class AOS_SetupSolution {
             NewCond.DAP = NewCond.DAP + 1;
             //Growing degree days after planting
             Object[] a = GrowingDegreeDay(Crop, NewCond, Weather.Tmax, Weather.Tmin);
-            Weather.GDD = (int) a[0];
+            Weather.GDD = (double) a[0];
             NewCond = (InitCondStruct) a[1];
         } else {
             //Calendar days after planting
@@ -231,8 +231,8 @@ public class AOS_SetupSolution {
         //Check if in growing season
         if (AOS_ClockStruct.SeasonCounter > 0) {
             int CurrentDate = AOS_ClockStruct.StepStartTime;
-            double PlantingDate = AOS_ClockStruct.PlantingDate[AOS_ClockStruct.SeasonCounter];
-            double HarvestDate = AOS_ClockStruct.HarvestDate[AOS_ClockStruct.SeasonCounter];
+            double PlantingDate = AOS_ClockStruct.PlantingDate[AOS_ClockStruct.SeasonCounter - 1];
+            double HarvestDate = AOS_ClockStruct.HarvestDate[AOS_ClockStruct.SeasonCounter - 1];
 
             return (CurrentDate >= PlantingDate) && (CurrentDate <= HarvestDate) && (!InitCond.CropMature) && (!InitCond.CropDead);
         }

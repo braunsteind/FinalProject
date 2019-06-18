@@ -11,7 +11,7 @@ public class AOS_SoilWaterBalance {
         //Unpack weather structure
         double P = Weather.Precip;
         double Et0 = Weather.RefET;
-        int GDD = Weather.GDD;
+        double GDD = Weather.GDD;
 
         //Store initial conditions for updating
         InitCondStruct NewCond = InitCond;
@@ -34,13 +34,13 @@ public class AOS_SoilWaterBalance {
         double[] FluxOut = (double[]) a[2];
 
         //Rainfall partitioning
-        a = AOS_RainfallPartition(P, Soil, FieldMngt, NewCond);
+        a = AOS_RainfallPartition(P, new Soil(Soil), FieldMngt, NewCond);
         double Runoff = (double) a[0];
         double Infl = (double) a[1];
         NewCond = (InitCondStruct) a[2];
 
         //Irrigation
-        a = AOS_Irrigation(AOS_ClockStruct, NewCond, IrrMngt, Crop, Soil, GrowingSeason, P, Runoff);
+        a = AOS_Irrigation(AOS_ClockStruct, NewCond, IrrMngt, Crop, new Soil(Soil), GrowingSeason, P, Runoff);
         NewCond = (InitCondStruct) a[0];
         double Irr = (double) a[1];
 
@@ -157,7 +157,7 @@ public class AOS_SoilWaterBalance {
         //Calculate drainage and updated water contents
         for (int ii = 0; ii < Soil.nComp; ii++) {
             //Specify layer for compartment
-            int layeri = Soil.comp.layer[ii];
+            int layeri = Soil.comp.layer[ii] - 1;
 
             //Calculate drainage ability of compartment ii
             if (InitCond.th[ii] <= InitCond.th_fc_Adj[ii]) {
@@ -252,10 +252,8 @@ public class AOS_SoilWaterBalance {
             double CN = Soil.CN * (1 + (FieldMngt.CNadjPct / 100));
             if (Soil.AdjCN == 1) { //Adjust CN for antecedent moisture
                 //Calculate upper and lowe curve number bounds
-                double CNbot = round(1.4 * (Math.exp(-14 * Math.log(10))) + (0.507 * CN) -
-                        Math.pow(0.00374 * CN, 2) + Math.pow(0.0000867 * CN, 3));
-                double CNtop = round(5.6 * (Math.exp(-14 * Math.log(10))) + (2.33 * CN) -
-                        Math.pow(0.0209 * CN, 2) + Math.pow(0.000076 * CN, 3));
+                double CNbot = round(1.4 * (exp(-14 * log(10))) + (0.507 * CN) - (0.00374 * pow(CN, 2)) + (0.0000867 * pow(CN, 3)));
+                double CNtop = round(5.6 * (exp(-14 * log(10))) + (2.33 * CN) - (0.0209 * pow(CN, 2)) + (0.000076 * pow(CN, 3)));
                 //Check which compartment cover depth of top soil used to adjust curve number
                 int comp_sto = 0;
                 for (int i = 0; i < Soil.comp.dzsum.length; i++) {
@@ -264,7 +262,7 @@ public class AOS_SoilWaterBalance {
                         break;
                     }
                 }
-                if (comp_sto != 0) {
+                if (comp_sto == 0) {
                     comp_sto = Soil.nComp;
                 }
                 //Calculate weighting factors by compartment
@@ -286,7 +284,7 @@ public class AOS_SoilWaterBalance {
                 //Calculate relative wetness of top soil
                 double wet_top = 0;
                 for (int ii = 0; ii < comp_sto; ii++) {
-                    int layeri = Soil.comp.layer[ii];
+                    int layeri = Soil.comp.layer[ii] - 1;
                     double th = Math.max(Soil.layer.th_wp[layeri], InitCond.th[ii]);
                     wet_top = wet_top + (wrel[ii] * ((th - Soil.layer.th_wp[layeri]) /
                             (Soil.layer.th_fc[layeri] - Soil.layer.th_wp[layeri])));
@@ -300,7 +298,7 @@ public class AOS_SoilWaterBalance {
             }
             //Partition rainfall into runoff and infiltration (mm)
             double S = (25400 / CN) - 254;
-            double term = P - ((5 / 100) * S);
+            double term = P - (0.05 * S);
             if (term <= 0) {
                 Runoff = 0;
                 Infl = P;
@@ -354,7 +352,7 @@ public class AOS_SoilWaterBalance {
                 Irr = 0;
             } else if (IrrMngt.IrrMethod == 1) { //Irrigation - soil moisture
                 //Get soil moisture target for current growth stage
-                double SMT = IrrMngt.SMT[NewCond.GrowthStage];
+                double SMT = IrrMngt.SMT[NewCond.GrowthStage - 1];
                 //Determine threshold to initiate irrigation
                 double IrrThr = (1 - SMT / 100) * TAW;
                 //Adjust depletion for inflows and outflows today
@@ -762,7 +760,7 @@ public class AOS_SoilWaterBalance {
 
         for (int ii = 0; ii < comp_sto; ii++) {
             //Specify layer number
-            int layeri = Soil.comp.layer[ii];
+            int layeri = Soil.comp.layer[ii] - 1;
             //Determine fraction of soil compartment covered by evaporation layer
             double factor = 0;
             if (Soil.comp.dzsum[ii] > InitCond.EvapZ) {
@@ -792,7 +790,7 @@ public class AOS_SoilWaterBalance {
 
     //Function to calculate crop transpiration on current day
     private static Object[] AOS_Transpiration(Soil Soil, Crop Crop, IrrMngtStruct IrrMngt, InitCondStruct InitCond,
-                                              double Et0, boolean GrowingSeason, int GDD, double PreIrr) {
+                                              double Et0, boolean GrowingSeason, double GDD, double PreIrr) {
         //Store initial conditions
         InitCondStruct NewCond = InitCond;
         double TrAct = 0, TrPotNS = 0, TrPot0 = 0, IrrNet = 0;

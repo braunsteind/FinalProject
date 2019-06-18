@@ -293,7 +293,7 @@ public class AOS_CropGrowthYieldForm {
 
 
     private static InitCondStruct CanopyCover(Crop crop, Soil soil, InitCondStruct InitCond,
-                                              int GDD, double Et0, CO2 co2, boolean GrowingSeason) {
+                                              double GDD, double Et0, CO2 co2, boolean GrowingSeason) {
 
         double tmp_tCC, dtCC = 0, tCCadj = 0, CDCadj = 0, DCadj, CCsen, CCXadj, DAPadj, tAdj = 0, KeMax, KeMin, mult = 1, CCxActAdj;
         //Store initial conditions in a new structure for updating
@@ -938,7 +938,7 @@ public class AOS_CropGrowthYieldForm {
      * @return
      */
     private static InitCondStruct RootDevelopment(Crop crop, Soil soil, GwStruct Groundwater, InitCondStruct InitCond,
-                                                  int GDD, boolean GrowingSeason) {
+                                                  double GDD, boolean GrowingSeason) {
         //Store initial conditions for updating
         InitCondStruct NewCond = InitCond;
 
@@ -1110,7 +1110,7 @@ public class AOS_CropGrowthYieldForm {
                                      InitCondStruct InitCond, SoilWatOutStruct SoilWatOut, boolean GrowingSeason, CO2 CO2) {
         //Unpack weather structure
         double Et0 = Weather.RefET;
-        int GDD = Weather.GDD;
+        double GDD = Weather.GDD;
         double Tmin = Weather.Tmin;
         double Tmax = Weather.Tmax;
 

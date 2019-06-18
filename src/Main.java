@@ -6,7 +6,6 @@ public class Main {
 
         //Perform single time-step (day)
         while (!aos_initialize.clockStruct.ModelTermination) {
-            //TODO
             AOS_PerformTimeStep.PerformTimeStep(aos_initialize);
         }
 
