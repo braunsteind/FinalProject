@@ -1,6 +1,7 @@
 package Structs;
 
 public class Crop {
+    public String name;
     public double CropType;
     public double PlantMethod;
     public double CalendarType;

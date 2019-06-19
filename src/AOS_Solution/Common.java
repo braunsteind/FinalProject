@@ -132,8 +132,8 @@ class Common {
         int nstress = Crop.p_up.length;
 
         //Store stress thresholds
-        double[] p_up = Crop.p_up;
-        double[] p_lo = Crop.p_lo;
+        double[] p_up = Crop.p_up.clone();
+        double[] p_lo = Crop.p_lo.clone();
         if (Crop.ETadj == 1) {
             //Adjust stress thresholds for Et0 on current day (don't do this for
             //pollination water stress coefficient)

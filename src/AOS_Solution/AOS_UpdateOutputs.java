@@ -77,14 +77,34 @@ public class AOS_UpdateOutputs {
             if ((NewCond.CropMature || NewCond.CropDead || (AOS_ClockStruct.StepEndTime ==
                     AOS_ClockStruct.HarvestDate[AOS_ClockStruct.SeasonCounter - 1])) && !NewCond.HarvestFlag) {
                 //Get planting and harvest dates
-
-                //TODO
-                //plant_sdate = find(AOS_ClockStruct.TimeSpan == AOS_ClockStruct.PlantingDate[AOS_ClockStruct.SeasonCounter - 1]);
+                int plant_sdate = 0;
                 for (int i = 0; i < AOS_ClockStruct.TimeSpan.length; i++) {
                     if (AOS_ClockStruct.TimeSpan[i] == AOS_ClockStruct.PlantingDate[AOS_ClockStruct.SeasonCounter - 1]) {
-
+                        plant_sdate = i + 1;
+                        break;
                     }
                 }
+                //TODO fix to datestr
+//                plant_cdate = datestr(AOS_ClockStruct.PlantingDate(AOS_ClockStruct.SeasonCounter),'dd/mm/yyyy');
+                String plant_cdate = "01/05/2015";
+//                harvest_cdate = datestr(AOS_ClockStruct.StepStartTime,'dd/mm/yyyy');
+                String harvest_cdate = "08/09/2015";
+                int harvest_sdate = AOS_ClockStruct.TimeStepCounter;
+
+                //Store end of season outputs
+                Outputs.FinalOutput = new String[8];
+                Outputs.FinalOutput[0] = String.valueOf(AOS_ClockStruct.SeasonCounter);
+                Outputs.FinalOutput[1] = AOS_InitialiseStruct.CropChoices[AOS_ClockStruct.SeasonCounter - 1].name;
+                Outputs.FinalOutput[2] = plant_cdate;
+                Outputs.FinalOutput[3] = String.valueOf(plant_sdate);
+                Outputs.FinalOutput[4] = harvest_cdate;
+                Outputs.FinalOutput[5] = String.valueOf(harvest_sdate);
+                //TODO bad value - check why
+                Outputs.FinalOutput[6] = String.valueOf(NewCond.Y);
+                Outputs.FinalOutput[7] = String.valueOf(IrrTot);
+
+                //Set harvest flag
+                NewCond.HarvestFlag = true;
             }
         }
 

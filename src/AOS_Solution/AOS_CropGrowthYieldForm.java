@@ -1039,27 +1039,27 @@ public class AOS_CropGrowthYieldForm {
             //Adjust rate of root expansion for dry soil at expansion front
             if (dZr > 0.001) {
                 //Define water stress threshold for inhibition of root expansion
-                double pZexp = crop.p_up[2] + ((1 - crop.p_up[2]) / 2);
+                double pZexp = crop.p_up[1] + ((1 - crop.p_up[1]) / 2.0);
                 //Define potential new root depth
                 double ZiTmp = InitCond.Zroot + dZr;
                 //Find compartment that root zone will expand in to
                 int compi = (int) find(soil.comp.dzsum, ZiTmp); //#########
                 //Get TAW in compartment
-                int layeri = soil.comp.layer[compi] - 1;
+                int layeri = soil.comp.layer[compi - 1] - 1;
                 double TAWcompi = (soil.layer.th_fc[layeri] - soil.layer.th_wp[layeri]);
                 //Define stress threshold
                 double thThr = soil.layer.th_fc[layeri] - (pZexp * TAWcompi);
                 //Check for stress conditions
-                if (NewCond.th[compi] < thThr) {
+                if (NewCond.th[compi - 1] < thThr) {
                     //Root expansion limited by water content at expansion front
-                    if (NewCond.th[compi] <= soil.layer.th_wp[layeri]) {
+                    if (NewCond.th[compi - 1] <= soil.layer.th_wp[layeri]) {
                         //Expansion fully inhibited
                         dZr = 0;
                     } else {
                         //Expansion partially inhibited
-                        double Wrel = (soil.layer.th_fc[layeri] - NewCond.th[compi]) / TAWcompi;
+                        double Wrel = (soil.layer.th_fc[layeri] - NewCond.th[compi - 1]) / TAWcompi;
                         double Drel = 1 - ((1 - Wrel) / (1 - pZexp));
-                        double Ks = 1 - ((Math.exp(Drel * crop.fshape_w[2]) - 1) / (Math.exp(crop.fshape_w[2]) - 1));
+                        double Ks = 1 - ((Math.exp(Drel * crop.fshape_w[1]) - 1) / (Math.exp(crop.fshape_w[1]) - 1));
                         dZr = dZr * Ks;
                     }
                 }

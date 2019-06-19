@@ -8,7 +8,7 @@ public class AOS_SoilWaterBalance {
 
     //int comp_sto = sum(Soil.comp.dzsum<Soil.EvapZmin)+1;
     private static int sum(Double[] arr, double val) {
-        int sum=0;
+        int sum = 0;
         for (int i = 0; i < arr.length; i++) {
             if (arr[i] < val) {
                 sum++;
@@ -143,7 +143,7 @@ public class AOS_SoilWaterBalance {
                 //TODO
                 //Determine compartments covered by the root zone
 //                double rootdepth = max(InitCond.Zroot, Crop.Zmin);
-//                rootdepth = Math.round((rootdepth * 100)) / 100;
+//                rootdepth = Math.round((rootdepth * 100)) / 100.0;
 //                comp_sto = find(Soil.Comp.dzsum >= rootdepth, 1, 'first');
             }
         }
@@ -259,7 +259,7 @@ public class AOS_SoilWaterBalance {
             //Reset submerged days
             NewCond.DaySubmerged = 0;
             //Adjust curve number for field management practices
-            double CN = Soil.CN * (1 + (FieldMngt.CNadjPct / 100));
+            double CN = Soil.CN * (1 + (FieldMngt.CNadjPct / 100.0));
             if (Soil.AdjCN == 1) { //Adjust CN for antecedent moisture
                 //Calculate upper and lowe curve number bounds
                 double CNbot = round(1.4 * (exp(-14 * log(10))) + (0.507 * CN) - (0.00374 * pow(CN, 2)) + (0.0000867 * pow(CN, 3)));
@@ -364,7 +364,7 @@ public class AOS_SoilWaterBalance {
                 //Get soil moisture target for current growth stage
                 double SMT = IrrMngt.SMT[NewCond.GrowthStage - 1];
                 //Determine threshold to initiate irrigation
-                double IrrThr = (1 - SMT / 100) * TAW;
+                double IrrThr = (1 - SMT / 100.0) * TAW;
                 //Adjust depletion for inflows and outflows today
                 Dr = Dr + WCadj;
                 if (Dr < 0) {
@@ -375,7 +375,7 @@ public class AOS_SoilWaterBalance {
                     //Irrigation will occur
                     double IrrReq = max(0, Dr);
                     //Adjust irrigation requirements for application efficiency
-                    double EffAdj = ((100 - IrrMngt.AppEff) + 100) / 100;
+                    double EffAdj = ((100 - IrrMngt.AppEff) + 100) / 100.0;
                     IrrReq = IrrReq * EffAdj;
                     //Limit irrigation to maximum depth
                     Irr = min(IrrMngt.MaxIrr, IrrReq);
@@ -396,7 +396,7 @@ public class AOS_SoilWaterBalance {
                     //Irrigation occurs
                     double IrrReq = max(0, Dr);
                     //Adjust irrigation requirements for application efficiency
-                    double EffAdj = ((100 - IrrMngt.AppEff) + 100) / 100;
+                    double EffAdj = ((100 - IrrMngt.AppEff) + 100) / 100.0;
                     IrrReq = IrrReq * EffAdj;
                     //Limit irrigation to maximum depth
                     Irr = min(IrrMngt.MaxIrr, IrrReq);
@@ -437,7 +437,7 @@ public class AOS_SoilWaterBalance {
         //Update infiltration rate for irrigation
         //Note: irrigation amount adjusted for specified application efficiency
         if (GrowingSeason) {
-            Infl = Infl + (Irr * (IrrMngt.AppEff / 100));
+            Infl = Infl + (Irr * (IrrMngt.AppEff / 100.0));
         }
 
         //Determine surface storage (if bunds are present)
@@ -592,7 +592,7 @@ public class AOS_SoilWaterBalance {
                 EsPotMul = EsPot;
             } else if (FieldMngt.Mulches.compareTo("Y") == 0) {
                 //Mulches present
-                EsPotMul = EsPot * (1 - FieldMngt.fMulch * (FieldMngt.MulchPct / 100));
+                EsPotMul = EsPot * (1 - FieldMngt.fMulch * (FieldMngt.MulchPct / 100.0));
             }
         } else {
             //Surface is flooded - no adjustment of potential soil evaporation for mulches
@@ -608,7 +608,7 @@ public class AOS_SoilWaterBalance {
                 EsPotIrr = EsPot;
             } else {
                 //Adjust for proprtion of surface area wetted by irrigation
-                EsPotIrr = EsPot * (IrrMngt.WetSurf / 100);
+                EsPotIrr = EsPot * (IrrMngt.WetSurf / 100.0);
             }
         } else {
             //No adjustment for partial surface wetting
@@ -649,55 +649,55 @@ public class AOS_SoilWaterBalance {
 
         if (ExtractPotStg1 > 0) {
             //Find soil compartments covered by evaporation layer
-            int comp_sto = sum(Soil.comp.dzsum, Soil.EvapZmin)+1;
+            int comp_sto = sum(Soil.comp.dzsum, Soil.EvapZmin) + 1;
             int comp = 0;
             int layeri;
             double factor, AvW, W;
             while ((ExtractPotStg1 > 0) && (comp < comp_sto)) {
                 //Increment compartment counter
-                comp = comp+1;
+                comp = comp + 1;
                 //Specify layer number
-                layeri = Soil.comp.layer[comp-1];
+                layeri = Soil.comp.layer[comp - 1];
                 //Determine proportion of compartment in evaporation layer
-                if (Soil.comp.dzsum[comp-1] > Soil.EvapZmin) {
-                    factor = 1-((Soil.comp.dzsum[comp-1]-Soil.EvapZmin)/Soil.comp.dz[comp-1]);
+                if (Soil.comp.dzsum[comp - 1] > Soil.EvapZmin) {
+                    factor = 1 - ((Soil.comp.dzsum[comp - 1] - Soil.EvapZmin) / Soil.comp.dz[comp - 1]);
                 } else {
                     factor = 1;
                 }
                 //Water storage (mm) at air dry
-                double Wdry = 1000*Soil.layer.th_dry[layeri-1]*Soil.comp.dz[comp-1];
+                double Wdry = 1000 * Soil.layer.th_dry[layeri - 1] * Soil.comp.dz[comp - 1];
                 //Available water (mm)
-                W = 1000*NewCond.th[comp-1]*Soil.comp.dz[comp-1];
+                W = 1000 * NewCond.th[comp - 1] * Soil.comp.dz[comp - 1];
                 //Water available in compartment for extraction (mm)
-                AvW = (W-Wdry)*factor;
+                AvW = (W - Wdry) * factor;
                 if (AvW < 0) {
                     AvW = 0;
                 }
                 if (AvW >= ExtractPotStg1) {
                     //Update actual evaporation
-                    EsAct = EsAct+ExtractPotStg1;
+                    EsAct = EsAct + ExtractPotStg1;
                     //Update depth of water in current compartment
-                    W = W-ExtractPotStg1;
+                    W = W - ExtractPotStg1;
                     //Update total water to be extracted
-                    ToExtract = ToExtract-ExtractPotStg1;
+                    ToExtract = ToExtract - ExtractPotStg1;
                     //Update water to be extracted from surface layer (stage 1)
                     ExtractPotStg1 = 0;
                 } else {
                     //Update actual evaporation
-                    EsAct = EsAct+AvW;
+                    EsAct = EsAct + AvW;
                     //Update water to be extracted from surface layer (stage 1)
-                    ExtractPotStg1 = ExtractPotStg1-AvW;
+                    ExtractPotStg1 = ExtractPotStg1 - AvW;
                     //Update total water to be extracted
-                    ToExtract = ToExtract-AvW;
+                    ToExtract = ToExtract - AvW;
                     //Update depth of water in current compartment
-                    W = W-AvW;
+                    W = W - AvW;
                 }
                 //Update water content
-                NewCond.th[comp-1] = W/(1000*Soil.comp.dz[comp-1]);
+                NewCond.th[comp - 1] = W / (1000 * Soil.comp.dz[comp - 1]);
             }
 
             //Update surface evaporation layer water balance
-            NewCond.Wsurf = NewCond.Wsurf-EsAct;
+            NewCond.Wsurf = NewCond.Wsurf - EsAct;
             if ((NewCond.Wsurf < 0) || (ExtractPotStg1 > 0.0001)) {
                 NewCond.Wsurf = 0;
             }
@@ -705,10 +705,10 @@ public class AOS_SoilWaterBalance {
             //If surface storage completely depleted, prepare stage 2
             if (NewCond.Wsurf < 0.0001) {
                 //Get water contents (mm)
-                Wevap = AOS_EvapLayerWaterContent(NewCond,Soil,Wevap);
+                Wevap = AOS_EvapLayerWaterContent(NewCond, Soil, Wevap);
                 //Proportional water storage for start of stage two evaporation
-                NewCond.Wstage2 = (Wevap.Act-(Wevap.Fc-Soil.REW))/(Wevap.Sat-(Wevap.Fc-Soil.REW));
-                NewCond.Wstage2 = round((100*NewCond.Wstage2))/100;
+                NewCond.Wstage2 = (Wevap.Act - (Wevap.Fc - Soil.REW)) / (Wevap.Sat - (Wevap.Fc - Soil.REW));
+                NewCond.Wstage2 = round((100 * NewCond.Wstage2)) / 100.0;
                 if (NewCond.Wstage2 < 0) {
                     NewCond.Wstage2 = 0;
                 }
@@ -768,19 +768,19 @@ public class AOS_SoilWaterBalance {
                 double factor = 0;
                 while (ToExtractStg2 > 0 && comp < comp_sto) {
                     //Increment compartment counter
-                    comp = (comp + 1) - 1;
+                    comp = comp + 1;
                     //Specify layer number
-                    int layeri = Soil.comp.layer[comp] - 1;
+                    int layeri = Soil.comp.layer[comp - 1] - 1;
                     //Determine proportion of compartment in evaporation layer
-                    if (Soil.comp.dzsum[comp] > NewCond.EvapZ) {
-                        factor = 1 - ((Soil.comp.dzsum[comp] - NewCond.EvapZ) / Soil.comp.dz[comp]);
+                    if (Soil.comp.dzsum[comp - 1] > NewCond.EvapZ) {
+                        factor = 1 - ((Soil.comp.dzsum[comp - 1] - NewCond.EvapZ) / Soil.comp.dz[comp - 1]);
                     } else {
                         factor = 1;
                     }
                     //Water storage (mm) at air dry
-                    double Wdry = 1000 * Soil.layer.th_dry[layeri] * Soil.comp.dz[comp];
+                    double Wdry = 1000 * Soil.layer.th_dry[layeri] * Soil.comp.dz[comp - 1];
                     //Available water (mm)
-                    double W = 1000 * NewCond.th[comp] * Soil.comp.dz[comp];
+                    double W = 1000 * NewCond.th[comp - 1] * Soil.comp.dz[comp - 1];
                     //Water available in compartment for extraction (mm)
                     double AvW = (W - Wdry) * factor;
                     if (AvW >= ToExtractStg2) {
@@ -803,7 +803,7 @@ public class AOS_SoilWaterBalance {
                         ToExtract = ToExtract - AvW;
                     }
                     //Update water content
-                    NewCond.th[comp] = W / (1000 * Soil.comp.dz[comp]);
+                    NewCond.th[comp - 1] = W / (1000 * Soil.comp.dz[comp - 1]);
                 }
             }
         }
@@ -954,7 +954,7 @@ public class AOS_SoilWaterBalance {
             //Determine compartments covered by root zone
             //Compartments covered by the root zone
             double rootdepth = max(NewCond.Zroot, Crop.Zmin);
-            rootdepth = round((100 * rootdepth)) / 100;
+            rootdepth = round((100 * rootdepth)) / 100.0;
             int sum = 0;
             for (int i = 0; i < Soil.comp.dzsum.length; i++) {
                 if (Soil.comp.dzsum[i] < rootdepth) {
@@ -1002,29 +1002,29 @@ public class AOS_SoilWaterBalance {
                 comp = comp + 1;
                 //Specify layer number
                 int layeri = Soil.comp.layer[comp - 1];
+
                 //Determine TAW (m3/m3) for compartment
-                double thTAW = Soil.layer.th_fc[layeri - 1]-Soil.layer.th_wp[layeri -1 ];
+                double thTAW = Soil.layer.th_fc[layeri - 1] - Soil.layer.th_wp[layeri - 1];
                 if (Crop.ETadj == 1) {
                     //Adjust stomatal stress threshold for Et0 on current day
-                    //p_up_sto = Crop.p_up[1]+(0.04*(5-Et0)).*(log10(10-9*Crop.p_up[1])); ---- ORIGINAL LINE _ SHOULD BE CHECKED!!!!!!!!!!! yesh sham . livdok
-                    p_up_sto = Crop.p_up[1]+(0.04*(5-Et0))*(log10(10-9*Crop.p_up[1]));
+                    p_up_sto = Crop.p_up[1] + (0.04 * (5 - Et0)) * (log10(10 - 9 * Crop.p_up[1]));
                 }
                 //Determine critical water content at which stomatal closure will occur in compartment
-                thCrit = Soil.layer.th_fc[layeri-1]-(thTAW*p_up_sto);
+                thCrit = Soil.layer.th_fc[layeri - 1] - (thTAW * p_up_sto);
                 //Check for soil water stress
-                if (NewCond.th[comp-1] >= thCrit) {
+                if (NewCond.th[comp - 1] >= thCrit) {
                     //No water stress effects on transpiration
                     KsComp = 1;
-                } else if (NewCond.th[comp-1] > Soil.layer.th_wp[layeri-1]) {
+                } else if (NewCond.th[comp - 1] > Soil.layer.th_wp[layeri - 1]) {
                     //Transpiration from compartment is affected by water stress
-                    Wrel = (Soil.layer.th_fc[layeri-1]-NewCond.th[comp-1])/(Soil.layer.th_fc[layeri-1]-Soil.layer.th_wp[layeri-1]);
-                    pRel = (Wrel-Crop.p_up[1])/(Crop.p_lo[1]-Crop.p_up[1]);
+                    Wrel = (Soil.layer.th_fc[layeri - 1] - NewCond.th[comp - 1]) / (Soil.layer.th_fc[layeri - 1] - Soil.layer.th_wp[layeri - 1]);
+                    pRel = (Wrel - Crop.p_up[1]) / (Crop.p_lo[1] - Crop.p_up[1]);
                     if (pRel <= 0) {
                         KsComp = 1;
-                    } else if ( pRel >= 1) {
+                    } else if (pRel >= 1) {
                         KsComp = 0;
                     } else {
-                        KsComp = 1-((exp(pRel*Crop.fshape_w[1])-1)/(exp(Crop.fshape_w[1])-1));
+                        KsComp = 1 - ((exp(pRel * Crop.fshape_w[1]) - 1) / (exp(Crop.fshape_w[1]) - 1));
                     }
                     if (KsComp > 1) {
                         KsComp = 1;
@@ -1041,40 +1041,40 @@ public class AOS_SoilWaterBalance {
                 if (NewCond.DaySubmerged >= Crop.LagAer) {
                     //Full aeration stress - no transpiration possible from compartment
                     AerComp = 0;
-                } else if (NewCond.th[comp-1] > (Soil.layer.th_s[layeri-1]-(Crop.Aer/100))) {
+                } else if (NewCond.th[comp - 1] > (Soil.layer.th_s[layeri - 1] - (Crop.Aer / 100.0))) {
                     //Increment aeration stress days counter
-                    NewCond.AerDaysComp[comp-1] = NewCond.AerDaysComp[comp-1]+1;
-                    if (NewCond.AerDaysComp[comp-1] >= Crop.LagAer) {
-                        NewCond.AerDaysComp[comp-1] = Crop.LagAer;
+                    NewCond.AerDaysComp[comp - 1] = NewCond.AerDaysComp[comp - 1] + 1;
+                    if (NewCond.AerDaysComp[comp - 1] >= Crop.LagAer) {
+                        NewCond.AerDaysComp[comp - 1] = Crop.LagAer;
                         fAer = 0;
                     } else {
                         fAer = 1;
                     }
                     //Calculate aeration stress factor
-                    AerComp = (Soil.layer.th_s[layeri-1]-NewCond.th[comp-1])/(Soil.layer.th_s[layeri-1]-(Soil.layer.th_s[layeri-1]-(Crop.Aer/100)));
+                    AerComp = (Soil.layer.th_s[layeri - 1] - NewCond.th[comp - 1]) / (Soil.layer.th_s[layeri - 1] - (Soil.layer.th_s[layeri - 1] - (Crop.Aer / 100.0)));
                     if (AerComp < 0) {
                         AerComp = 0;
                     }
-                    AerComp = (fAer+(NewCond.AerDaysComp[comp-1]-1)*AerComp)/(fAer+NewCond.AerDaysComp[comp-1]-1);
+                    AerComp = (fAer + (NewCond.AerDaysComp[comp - 1] - 1) * AerComp) / (fAer + NewCond.AerDaysComp[comp - 1] - 1);
                 } else {
                     //No aeration stress as number of submerged days does not
                     //exceed threshold for initiation of aeration stress
                     AerComp = 1;
-                    NewCond.AerDaysComp[comp-1] = 0;
+                    NewCond.AerDaysComp[comp - 1] = 0;
                 }
 
                 //Extract water
-                ThToExtract = (ToExtract/1000)/Soil.comp.dz[comp-1];
+                ThToExtract = (ToExtract / 1000.0) / Soil.comp.dz[comp - 1];
                 if (IrrMngt.IrrMethod == 4) {
                     //Don't reduce compartment sink for stomatal water stress if in
                     //net irrigation mode. Stress only occurs due to deficient aeration conditions
-                    Sink = AerComp*SxComp[comp-1]*RootFact[comp-1];
+                    Sink = AerComp * SxComp[comp - 1] * RootFact[comp - 1];
                 } else {
                     //Reduce compartment sink for greatest of stomatal and aeration stress
                     if (KsComp == AerComp) {
-                        Sink = KsComp*SxComp[comp-1]*RootFact[comp-1];
+                        Sink = KsComp * SxComp[comp - 1] * RootFact[comp - 1];
                     } else {
-                        Sink = min(KsComp,AerComp)*SxComp[comp-1]*RootFact[comp-1];
+                        Sink = min(KsComp, AerComp) * SxComp[comp - 1] * RootFact[comp - 1];
                     }
                 }
 
@@ -1084,18 +1084,18 @@ public class AOS_SoilWaterBalance {
                 }
 
                 //Limit extraction to avoid compartment water content dropping below air dry
-                if ((InitCond.th[comp-1]-Sink) < Soil.layer.th_dry[layeri-1]) {
-                    Sink = InitCond.th[comp-1]-Soil.layer.th_dry[layeri-1];
+                if ((InitCond.th[comp - 1] - Sink) < Soil.layer.th_dry[layeri - 1]) {
+                    Sink = InitCond.th[comp - 1] - Soil.layer.th_dry[layeri - 1];
                     if (Sink < 0) {
                         Sink = 0;
                     }
                 }
                 //Update water content in compartment
-                NewCond.th[comp-1] = InitCond.th[comp-1]-Sink;
+                NewCond.th[comp - 1] = InitCond.th[comp - 1] - Sink;
                 //Update amount of water to extract
-                ToExtract = ToExtract-(Sink*1000*Soil.comp.dz[comp-1]);
+                ToExtract = ToExtract - (Sink * 1000 * Soil.comp.dz[comp - 1]);
                 //Update actual transpiration
-                TrAct = TrAct+(Sink*1000*Soil.comp.dz[comp-1]);
+                TrAct = TrAct + (Sink * 1000 * Soil.comp.dz[comp - 1]);
             }
 
             //Add net irrigation water requirement (if this mode is specified)
@@ -1228,7 +1228,7 @@ public class AOS_SoilWaterBalance {
             //Water storage in root zone at air dry (mm)
             WrDry = WrDry + (factor * 1000 * Soil.layer.th_dry[layeri] * Soil.comp.dz[ii]);
             //Water storage in root zone at aeration stress threshold (mm)
-            WrAer = WrAer + (factor * 1000 * (Soil.layer.th_s[layeri] - (Crop.Aer / 100)) * Soil.comp.dz[ii]);
+            WrAer = WrAer + (factor * 1000 * (Soil.layer.th_s[layeri] - (Crop.Aer / 100.0)) * Soil.comp.dz[ii]);
         }
 
         if (WrAct < 0)

@@ -1282,6 +1282,7 @@ public class AOS_Initialize {
 
             //Create crop parameter structure
             paramStruct.crop[i] = new Crop();
+            paramStruct.crop[i].name = CropInfo[i];
             paramStruct.crop[i].Emergence = Double.parseDouble(DataArray[0]);
             paramStruct.crop[i].MaxRooting = Double.parseDouble(DataArray[1]);
             paramStruct.crop[i].Senescence = Double.parseDouble(DataArray[2]);
