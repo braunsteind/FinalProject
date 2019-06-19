@@ -1,8 +1,8 @@
 package Structs;
 
 public class Outputs {
-    public int[][] WaterContents;
-    public int[][] WaterFluxes;
-    public int[][] CropGrowth;
+    public double[][] WaterContents;
+    public double[][] WaterFluxes;
+    public double[][] CropGrowth;
     public String[] FinalOutput;
 }

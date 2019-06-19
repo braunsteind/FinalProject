@@ -43,7 +43,7 @@ public class AOS_Initialize {
         //Define output file location
         String FileLoc = fileLocation.output;
         //Setup blank matrices to store outputs
-        AOS_InitialiseStruct.Outputs.WaterContents = new int[clockStruct.TimeSpan.length][5 + paramStruct.soil.nComp];
+        AOS_InitialiseStruct.Outputs.WaterContents = new double[clockStruct.TimeSpan.length][5 + paramStruct.soil.nComp];
         for (int i = 0; i < clockStruct.TimeSpan.length; i++) {
             for (int j = 3; j < 5 + paramStruct.soil.nComp; j++) {
                 if (j == 4) {
@@ -52,7 +52,7 @@ public class AOS_Initialize {
                 AOS_InitialiseStruct.Outputs.WaterContents[i][j] = -999;
             }
         }
-        AOS_InitialiseStruct.Outputs.WaterFluxes = new int[clockStruct.TimeSpan.length][18];
+        AOS_InitialiseStruct.Outputs.WaterFluxes = new double[clockStruct.TimeSpan.length][18];
         for (int i = 0; i < clockStruct.TimeSpan.length; i++) {
             for (int j = 3; j < 18; j++) {
                 if (j == 4) {
@@ -61,7 +61,7 @@ public class AOS_Initialize {
                 AOS_InitialiseStruct.Outputs.WaterFluxes[i][j] = -999;
             }
         }
-        AOS_InitialiseStruct.Outputs.CropGrowth = new int[clockStruct.TimeSpan.length][15];
+        AOS_InitialiseStruct.Outputs.CropGrowth = new double[clockStruct.TimeSpan.length][15];
         for (int i = 0; i < clockStruct.TimeSpan.length; i++) {
             for (int j = 3; j < 15; j++) {
                 if (j == 4) {
