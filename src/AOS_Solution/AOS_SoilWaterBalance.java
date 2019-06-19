@@ -5,6 +5,19 @@ import Structs.*;
 import static java.lang.Math.*;
 
 public class AOS_SoilWaterBalance {
+
+    //int comp_sto = sum(Soil.comp.dzsum<Soil.EvapZmin)+1;
+    private static int sum(Double[] arr, double val) {
+        int sum=0;
+        for (int i = 0; i < arr.length; i++) {
+            if (arr[i] < val) {
+                sum++;
+            }
+        }
+        return sum;
+    }
+
+
     //Function to execute AquaCrop-OS soil water balance module
     public static Object[] run(ClockStruct AOS_ClockStruct, Crop Crop, Soil Soil, Weather Weather, IrrMngtStruct IrrMngt, FieldMngtStruct FieldMngt,
                                GwStruct Groundwater, InitCondStruct InitCond, boolean GrowingSeason) {
@@ -633,8 +646,73 @@ public class AOS_SoilWaterBalance {
         //Determine total water to be extracted in stage one (limited by surface layer water storage)
         double ExtractPotStg1 = min(ToExtract, NewCond.Wsurf);
         //Extract water
+
         if (ExtractPotStg1 > 0) {
-            //TODO
+            //Find soil compartments covered by evaporation layer
+            int comp_sto = sum(Soil.comp.dzsum, Soil.EvapZmin)+1;
+            int comp = 0;
+            int layeri;
+            double factor, AvW, W;
+            while ((ExtractPotStg1 > 0) && (comp < comp_sto)) {
+                //Increment compartment counter
+                comp = comp+1;
+                //Specify layer number
+                layeri = Soil.comp.layer[comp-1];
+                //Determine proportion of compartment in evaporation layer
+                if (Soil.comp.dzsum[comp-1] > Soil.EvapZmin) {
+                    factor = 1-((Soil.comp.dzsum[comp-1]-Soil.EvapZmin)/Soil.comp.dz[comp-1]);
+                } else {
+                    factor = 1;
+                }
+                //Water storage (mm) at air dry
+                double Wdry = 1000*Soil.layer.th_dry[layeri-1]*Soil.comp.dz[comp-1];
+                //Available water (mm)
+                W = 1000*NewCond.th[comp-1]*Soil.comp.dz[comp-1];
+                //Water available in compartment for extraction (mm)
+                AvW = (W-Wdry)*factor;
+                if (AvW < 0) {
+                    AvW = 0;
+                }
+                if (AvW >= ExtractPotStg1) {
+                    //Update actual evaporation
+                    EsAct = EsAct+ExtractPotStg1;
+                    //Update depth of water in current compartment
+                    W = W-ExtractPotStg1;
+                    //Update total water to be extracted
+                    ToExtract = ToExtract-ExtractPotStg1;
+                    //Update water to be extracted from surface layer (stage 1)
+                    ExtractPotStg1 = 0;
+                } else {
+                    //Update actual evaporation
+                    EsAct = EsAct+AvW;
+                    //Update water to be extracted from surface layer (stage 1)
+                    ExtractPotStg1 = ExtractPotStg1-AvW;
+                    //Update total water to be extracted
+                    ToExtract = ToExtract-AvW;
+                    //Update depth of water in current compartment
+                    W = W-AvW;
+                }
+                //Update water content
+                NewCond.th[comp-1] = W/(1000*Soil.comp.dz[comp-1]);
+            }
+
+            //Update surface evaporation layer water balance
+            NewCond.Wsurf = NewCond.Wsurf-EsAct;
+            if ((NewCond.Wsurf < 0) || (ExtractPotStg1 > 0.0001)) {
+                NewCond.Wsurf = 0;
+            }
+
+            //If surface storage completely depleted, prepare stage 2
+            if (NewCond.Wsurf < 0.0001) {
+                //Get water contents (mm)
+                Wevap = AOS_EvapLayerWaterContent(NewCond,Soil,Wevap);
+                //Proportional water storage for start of stage two evaporation
+                NewCond.Wstage2 = (Wevap.Act-(Wevap.Fc-Soil.REW))/(Wevap.Sat-(Wevap.Fc-Soil.REW));
+                NewCond.Wstage2 = round((100*NewCond.Wstage2))/100;
+                if (NewCond.Wstage2 < 0) {
+                    NewCond.Wstage2 = 0;
+                }
+            }
         }
 
         //Stage 2 evaporation
@@ -928,7 +1006,7 @@ public class AOS_SoilWaterBalance {
                 double thTAW = Soil.layer.th_fc[layeri - 1]-Soil.layer.th_wp[layeri -1 ];
                 if (Crop.ETadj == 1) {
                     //Adjust stomatal stress threshold for Et0 on current day
-                    //p_up_sto = Crop.p_up[1]+(0.04*(5-Et0)).*(log10(10-9*Crop.p_up[1])); ---- ORIGINAL LINE _ SHOULD BE CHECKED!!!!!!!!!!!
+                    //p_up_sto = Crop.p_up[1]+(0.04*(5-Et0)).*(log10(10-9*Crop.p_up[1])); ---- ORIGINAL LINE _ SHOULD BE CHECKED!!!!!!!!!!! yesh sham . livdok
                     p_up_sto = Crop.p_up[1]+(0.04*(5-Et0))*(log10(10-9*Crop.p_up[1]));
                 }
                 //Determine critical water content at which stomatal closure will occur in compartment
