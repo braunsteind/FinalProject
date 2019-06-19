@@ -1014,7 +1014,7 @@ public class AOS_SoilWaterBalance {
         //Calculate root zone water content and available water
         //Compartments covered by the root zone
         double rootdepth = max(InitCond.Zroot, Crop.Zmin);
-        rootdepth = round((rootdepth * 100)) / 100;
+        rootdepth = round((rootdepth * 100)) / 100.0;
         int sum = 0;
         for (int i = 0; i < Soil.comp.dzsum.length; i++) {
             if (Soil.comp.dzsum[i] < rootdepth) {
@@ -1033,7 +1033,7 @@ public class AOS_SoilWaterBalance {
 
         for (int ii = 0; ii < comp_sto; ii++) {
             //Specify layer
-            int layeri = Soil.comp.layer[ii];
+            int layeri = Soil.comp.layer[ii] - 1;
             //Fraction of compartment covered by root zone
             double factor;
             if (Soil.comp.dzsum[ii] > rootdepth) {
@@ -1081,7 +1081,7 @@ public class AOS_SoilWaterBalance {
         if (rootdepth > Soil.zTop) {
             //Determine compartments covered by the top soil
             double ztopdepth = Soil.zTop;
-            ztopdepth = round((ztopdepth * 100)) / 100;
+            ztopdepth = round((ztopdepth * 100)) / 100.0;
             sum = 0;
             for (int i = 0; i < Soil.comp.dzsum.length; i++) {
                 if (Soil.comp.dzsum[i] < ztopdepth) {
@@ -1097,7 +1097,7 @@ public class AOS_SoilWaterBalance {
             //Calculate water storage in top soil
             for (int ii = 0; ii < comp_sto; ii++) {
                 //Specify layer
-                int layeri = Soil.comp.layer[ii];
+                int layeri = Soil.comp.layer[ii] - 1;
                 //Fraction of compartment covered by root zone
                 double factor;
                 if (Soil.comp.dzsum[ii] > ztopdepth) {
