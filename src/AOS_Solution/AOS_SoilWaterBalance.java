@@ -17,17 +17,14 @@ public class AOS_SoilWaterBalance {
         InitCondStruct NewCond = InitCond;
 
         //Check for presence of groundwater table
-        //TODO
         NewCond = AOS_CheckGroundwaterTable(Soil, Groundwater, NewCond);
 
         //Pre-irrigation
-        //TODO
         Object[] a = AOS_PreIrrigation(Soil, Crop, IrrMngt, NewCond, GrowingSeason);
         NewCond = (InitCondStruct) a[0];
         double PreIrr = (double) a[1];
 
         //Drainage
-        //TODO
         a = AOS_Drainage(Soil, NewCond);
         NewCond = (InitCondStruct) a[0];
         double DeepPerc = (double) a[1];
@@ -105,7 +102,7 @@ public class AOS_SoilWaterBalance {
     //Function to check for presence of a groundwater table, and, if present,
     //to adjust compartment water contents and field capacities where necessary
     private static InitCondStruct AOS_CheckGroundwaterTable(Soil Soil, GwStruct Groundwater, InitCondStruct InitCond) {
-        //Store initial conditions for updating %%
+        //Store initial conditions for updating
         InitCondStruct NewCond = InitCond;
 
         //Perform calculations (if variable water table is present)
@@ -546,7 +543,7 @@ public class AOS_SoilWaterBalance {
             //Get relative water content for start of stage 2 evaporation
             Wevap = AOS_EvapLayerWaterContent(NewCond, Soil, Wevap);
             NewCond.Wstage2 = (Wevap.Act - (Wevap.Fc - Soil.REW)) / (Wevap.Sat - (Wevap.Fc - Soil.REW));
-            NewCond.Wstage2 = round((100 * NewCond.Wstage2)) / 100;
+            NewCond.Wstage2 = round((100 * NewCond.Wstage2)) / 100.0;
             if (NewCond.Wstage2 < 0) {
                 NewCond.Wstage2 = 0;
             }
@@ -693,9 +690,9 @@ public class AOS_SoilWaterBalance {
                 double factor = 0;
                 while (ToExtractStg2 > 0 && comp < comp_sto) {
                     //Increment compartment counter
-                    comp = comp + 1;
+                    comp = (comp + 1) - 1;
                     //Specify layer number
-                    int layeri = Soil.comp.layer[comp];
+                    int layeri = Soil.comp.layer[comp] - 1;
                     //Determine proportion of compartment in evaporation layer
                     if (Soil.comp.dzsum[comp] > NewCond.EvapZ) {
                         factor = 1 - ((Soil.comp.dzsum[comp] - NewCond.EvapZ) / Soil.comp.dz[comp]);
