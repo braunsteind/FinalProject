@@ -88,6 +88,6 @@ public class AOS_UpdateOutputs {
             }
         }
 
-        return new Object[]{Outputs, NewCond};
+        return new Object[]{NewCond, Outputs};
     }
 }

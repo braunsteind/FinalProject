@@ -29,7 +29,7 @@ public class AOS_PerformTimeStep {
         AOS_CheckModelTermination(aos_initialize);
 
         //Update time step
-        AOS_UpdateTime();
+        AOS_UpdateTime(aos_initialize.clockStruct, AOS_InitialiseStruct);
     }
 
     private static void AOS_CheckModelTermination(AOS_Initialize aos_initialize) {
@@ -53,7 +53,53 @@ public class AOS_PerformTimeStep {
     }
 
     //Function to update current time in model
-    private static void AOS_UpdateTime() {
-        //TODO
+    private static void AOS_UpdateTime(ClockStruct AOS_ClockStruct, AOS_InitialiseStruct AOS_InitialiseStruct) {
+        //Update time
+        if (!AOS_ClockStruct.ModelTermination) {
+            if (AOS_InitialiseStruct.InitialCondition.HarvestFlag && AOS_ClockStruct.OffSeason.compareTo("N") == 0) {
+                //End of growing season has been reached and not simulating
+                //off-season soil water balance. Advance time to the start of the
+                //next growing season.
+                //Check if in last growing season
+                if (AOS_ClockStruct.SeasonCounter < AOS_ClockStruct.nSeasons) {
+                    //TODO
+                    //Update growing season counter
+                    AOS_ClockStruct.SeasonCounter = AOS_ClockStruct.SeasonCounter + 1;
+                    //Update time-step counter
+                    for (int i = 0; i < AOS_ClockStruct.TimeSpan.length; i++) {
+                        if (AOS_ClockStruct.TimeSpan[i] == AOS_ClockStruct.PlantingDate[AOS_ClockStruct.SeasonCounter - 1]) {
+                        }
+                    }
+
+                    //Update start time of time-step
+                    AOS_ClockStruct.StepStartTime = AOS_ClockStruct.TimeSpan[AOS_ClockStruct.TimeStepCounter - 1];
+                    //Update end time of time-step
+                    AOS_ClockStruct.StepEndTime = AOS_ClockStruct.TimeSpan[(AOS_ClockStruct.TimeStepCounter + 1) - 1];
+                    //Reset initial conditions for start of growing season
+//                    AOS_ResetInitialConditions();
+                }
+            } else {
+                //Simulation considers off-season, so progress by one time-step (one day) Time-step counter
+                AOS_ClockStruct.TimeStepCounter = AOS_ClockStruct.TimeStepCounter + 1;
+                //Start of time step (beginning of current day)
+                AOS_ClockStruct.StepStartTime = AOS_ClockStruct.TimeSpan[AOS_ClockStruct.TimeStepCounter - 1];
+                //End of time step (beginning of next day)
+                AOS_ClockStruct.StepEndTime = AOS_ClockStruct.TimeSpan[(AOS_ClockStruct.TimeStepCounter + 1) - 1];
+                //Check if in last growing season
+                if (AOS_ClockStruct.SeasonCounter < AOS_ClockStruct.nSeasons) {
+                    //TODO
+                    //Check if upcoming day is the start of a new growing season
+                    if (AOS_ClockStruct.StepStartTime == AOS_ClockStruct.PlantingDate[(AOS_ClockStruct.SeasonCounter + 1) - 1]) {
+                        //Update growing season counter
+                        AOS_ClockStruct.SeasonCounter = AOS_ClockStruct.SeasonCounter + 1;
+                        //Reset initial conditions for start of growing season
+//                        AOS_ResetInitialConditions();
+                    }
+                }
+            }
+        } else {
+            AOS_ClockStruct.StepStartTime = AOS_ClockStruct.StepEndTime;
+            AOS_ClockStruct.StepEndTime = AOS_ClockStruct.StepEndTime + 1;
+        }
     }
 }

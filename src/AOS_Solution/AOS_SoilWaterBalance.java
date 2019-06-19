@@ -915,11 +915,15 @@ public class AOS_SoilWaterBalance {
             }
             //Extract water
             double ToExtract = TrPot;
-            double comp = 0;
+            int comp = 0;
             TrAct = 0;
 
             while ((ToExtract > 0) && (comp < comp_sto)) {
-                //TODO
+                //Increment compartment
+                comp = comp + 1;
+                //Specify layer number
+                int layeri = Soil.comp.layer[comp - 1];
+                //TODO need to implement here
             }
 
             //Add net irrigation water requirement (if this mode is specified)
