@@ -94,7 +94,7 @@ class Common {
             //Calculate water storage in top soil
             for (int ii = 0; ii < comp_sto; ii++) {
                 //Specify layer
-                int layeri = Soil.comp.layer[ii];
+                int layeri = Soil.comp.layer[ii] - 1;
                 //Fraction of compartment covered by root zone
                 if (Soil.comp.dzsum[ii] > ztopdepth) {
                     factor = 1 - ((Soil.comp.dzsum[ii] - ztopdepth) / Soil.comp.dz[ii]);

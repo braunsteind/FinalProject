@@ -999,10 +999,10 @@ public class AOS_CropGrowthYieldForm {
 
             //Adjust expansion rate for presence of restrictive soil horizons
             if (Zr > crop.Zmin) {
-                int layeri = 1;
+                int layeri = 1 - 1;
                 double Zsoil = soil.layer.dz[layeri];
                 while ((Zsoil <= crop.Zmin) && (layeri < soil.nLayer)) {
-                    layeri = layeri + 1;
+                    layeri = (layeri + 1) - 1;
                     Zsoil = Zsoil + soil.layer.dz[layeri];
                 }
                 double ZrAdj = crop.Zmin;
@@ -1012,13 +1012,13 @@ public class AOS_CropGrowthYieldForm {
                 boolean EndProf = false;
                 while (!EndProf) {
                     ZrTest = ZrAdj + (ZrRemain * (soil.layer.Penetrability[layeri] / 100));
-                    if ((layeri == soil.nLayer) || (soil.layer.Penetrability[layeri] == 0) || (ZrTest <= Zsoil)) {
+                    if (((layeri + 1) == soil.nLayer) || (soil.layer.Penetrability[layeri] == 0) || (ZrTest <= Zsoil)) {
                         ZrOUT = ZrTest;
                         EndProf = true;
                     } else {
                         ZrAdj = Zsoil;
-                        ZrRemain = ZrRemain - (deltaZ / (soil.layer.Penetrability[layeri] / 100));
-                        layeri = layeri + 1;
+                        ZrRemain = ZrRemain - (deltaZ / (soil.layer.Penetrability[layeri] / 100.0));
+                        layeri = (layeri + 1) - 1;
                         Zsoil = Zsoil + soil.layer.dz[layeri];
                         deltaZ = soil.layer.dz[layeri];
                     }
@@ -1045,7 +1045,7 @@ public class AOS_CropGrowthYieldForm {
                 //Find compartment that root zone will expand in to
                 int compi = (int) find(soil.comp.dzsum, ZiTmp); //#########
                 //Get TAW in compartment
-                int layeri = soil.comp.layer[compi];
+                int layeri = soil.comp.layer[compi] - 1;
                 double TAWcompi = (soil.layer.th_fc[layeri] - soil.layer.th_wp[layeri]);
                 //Define stress threshold
                 double thThr = soil.layer.th_fc[layeri] - (pZexp * TAWcompi);

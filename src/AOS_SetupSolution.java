@@ -73,7 +73,7 @@ public class AOS_SetupSolution {
 
             for (int ii = 0; ii < comp_sto; ii++) {
                 //Get soil layer
-                int layeri = Soil.comp.layer[ii];
+                int layeri = Soil.comp.layer[ii] - 1;
 
                 //Determine fraction of compartment covered by top soil layer
                 double factor;

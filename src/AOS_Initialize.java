@@ -379,7 +379,7 @@ public class AOS_Initialize {
             //TODO
         }
 
-        InitCondStruct.thini = InitCondStruct.th;
+        InitCondStruct.thini = InitCondStruct.th.clone();
 
         return InitCondStruct;
     }
@@ -437,7 +437,7 @@ public class AOS_Initialize {
         paramStruct.soil.comp.th_fc = new double[paramStruct.soil.nComp];
         //Assign field capacity values to each soil compartment
         for (int i = 0; i < paramStruct.soil.nComp; i++) {
-            int layeri = paramStruct.soil.comp.layer[i];
+            int layeri = paramStruct.soil.comp.layer[i] - 1;
             paramStruct.soil.comp.th_fc[i] = paramStruct.soil.layer.th_fc[layeri];
         }
 
