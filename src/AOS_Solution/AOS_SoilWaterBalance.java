@@ -790,7 +790,8 @@ public class AOS_SoilWaterBalance {
                                               double Et0, boolean GrowingSeason, double GDD, double PreIrr) {
         //Store initial conditions
         InitCondStruct NewCond = InitCond;
-        double TrAct = 0, TrPotNS = 0, TrPot0 = 0, IrrNet = 0;
+        double TrAct = 0, TrPotNS = 0, TrPot0 = 0, IrrNet = 0, KsComp, Wrel, pRel, thCrit, AerComp;
+        double Sink, fAer, ThToExtract, p_up_sto = 1;
 
         //Calculate transpiration (if in growing season)
         if (GrowingSeason) {
@@ -923,7 +924,100 @@ public class AOS_SoilWaterBalance {
                 comp = comp + 1;
                 //Specify layer number
                 int layeri = Soil.comp.layer[comp - 1];
-                //TODO need to implement here
+                //Determine TAW (m3/m3) for compartment
+                double thTAW = Soil.layer.th_fc[layeri - 1]-Soil.layer.th_wp[layeri -1 ];
+                if (Crop.ETadj == 1) {
+                    //Adjust stomatal stress threshold for Et0 on current day
+                    //p_up_sto = Crop.p_up[1]+(0.04*(5-Et0)).*(log10(10-9*Crop.p_up[1])); ---- ORIGINAL LINE _ SHOULD BE CHECKED!!!!!!!!!!!
+                    p_up_sto = Crop.p_up[1]+(0.04*(5-Et0))*(log10(10-9*Crop.p_up[1]));
+                }
+                //Determine critical water content at which stomatal closure will occur in compartment
+                thCrit = Soil.layer.th_fc[layeri-1]-(thTAW*p_up_sto);
+                //Check for soil water stress
+                if (NewCond.th[comp-1] >= thCrit) {
+                    //No water stress effects on transpiration
+                    KsComp = 1;
+                } else if (NewCond.th[comp-1] > Soil.layer.th_wp[layeri-1]) {
+                    //Transpiration from compartment is affected by water stress
+                    Wrel = (Soil.layer.th_fc[layeri-1]-NewCond.th[comp-1])/(Soil.layer.th_fc[layeri-1]-Soil.layer.th_wp[layeri-1]);
+                    pRel = (Wrel-Crop.p_up[1])/(Crop.p_lo[1]-Crop.p_up[1]);
+                    if (pRel <= 0) {
+                        KsComp = 1;
+                    } else if ( pRel >= 1) {
+                        KsComp = 0;
+                    } else {
+                        KsComp = 1-((exp(pRel*Crop.fshape_w[1])-1)/(exp(Crop.fshape_w[1])-1));
+                    }
+                    if (KsComp > 1) {
+                        KsComp = 1;
+                    } else if (KsComp < 0) {
+                        KsComp = 0;
+                    }
+                } else {
+                    //No transpiration is possible from compartment as water
+                    //content does not exceed wilting point
+                    KsComp = 0;
+                }
+
+                //Adjust compartment stress factor for aeration stress
+                if (NewCond.DaySubmerged >= Crop.LagAer) {
+                    //Full aeration stress - no transpiration possible from compartment
+                    AerComp = 0;
+                } else if (NewCond.th[comp-1] > (Soil.layer.th_s[layeri-1]-(Crop.Aer/100))) {
+                    //Increment aeration stress days counter
+                    NewCond.AerDaysComp[comp-1] = NewCond.AerDaysComp[comp-1]+1;
+                    if (NewCond.AerDaysComp[comp-1] >= Crop.LagAer) {
+                        NewCond.AerDaysComp[comp-1] = Crop.LagAer;
+                        fAer = 0;
+                    } else {
+                        fAer = 1;
+                    }
+                    //Calculate aeration stress factor
+                    AerComp = (Soil.layer.th_s[layeri-1]-NewCond.th[comp-1])/(Soil.layer.th_s[layeri-1]-(Soil.layer.th_s[layeri-1]-(Crop.Aer/100)));
+                    if (AerComp < 0) {
+                        AerComp = 0;
+                    }
+                    AerComp = (fAer+(NewCond.AerDaysComp[comp-1]-1)*AerComp)/(fAer+NewCond.AerDaysComp[comp-1]-1);
+                } else {
+                    //No aeration stress as number of submerged days does not
+                    //exceed threshold for initiation of aeration stress
+                    AerComp = 1;
+                    NewCond.AerDaysComp[comp-1] = 0;
+                }
+
+                //Extract water
+                ThToExtract = (ToExtract/1000)/Soil.comp.dz[comp-1];
+                if (IrrMngt.IrrMethod == 4) {
+                    //Don't reduce compartment sink for stomatal water stress if in
+                    //net irrigation mode. Stress only occurs due to deficient aeration conditions
+                    Sink = AerComp*SxComp[comp-1]*RootFact[comp-1];
+                } else {
+                    //Reduce compartment sink for greatest of stomatal and aeration stress
+                    if (KsComp == AerComp) {
+                        Sink = KsComp*SxComp[comp-1]*RootFact[comp-1];
+                    } else {
+                        Sink = min(KsComp,AerComp)*SxComp[comp-1]*RootFact[comp-1];
+                    }
+                }
+
+                //Limit extraction to demand
+                if (ThToExtract < Sink) {
+                    Sink = ThToExtract;
+                }
+
+                //Limit extraction to avoid compartment water content dropping below air dry
+                if ((InitCond.th[comp-1]-Sink) < Soil.layer.th_dry[layeri-1]) {
+                    Sink = InitCond.th[comp-1]-Soil.layer.th_dry[layeri-1];
+                    if (Sink < 0) {
+                        Sink = 0;
+                    }
+                }
+                //Update water content in compartment
+                NewCond.th[comp-1] = InitCond.th[comp-1]-Sink;
+                //Update amount of water to extract
+                ToExtract = ToExtract-(Sink*1000*Soil.comp.dz[comp-1]);
+                //Update actual transpiration
+                TrAct = TrAct+(Sink*1000*Soil.comp.dz[comp-1]);
             }
 
             //Add net irrigation water requirement (if this mode is specified)
