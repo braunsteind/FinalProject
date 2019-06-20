@@ -739,22 +739,22 @@ public class AOS_Initialize {
             for (int i = 0; i < GDDcum.length; i++) {
                 //1. Calendar days from sowing to maximum canopy cover
                 if (GDDcum[i] > Crop.MaxCanopy && !set1) {
-                    Crop.MaxCanopyCD = i;
+                    Crop.MaxCanopyCD = i + 1;
                     set1 = true;
                 }
                 //1. Calendar days from sowing to end of vegetative growth
                 if (GDDcum[i] > Crop.CanopyDevEnd && !set2) {
-                    Crop.CanopyDevEndCD = i;
+                    Crop.CanopyDevEndCD = i + 1;
                     set2 = true;
                 }
                 //2. Calendar days from sowing to start of yield formation
                 if (GDDcum[i] > Crop.HIstart && !set3) {
-                    Crop.HIstartCD = i;
+                    Crop.HIstartCD = i + 1;
                     set3 = true;
                 }
                 //3. Calendar days from sowing to end of yield formation
                 if (GDDcum[i] > Crop.HIend && !set4) {
-                    Crop.HIendCD = i;
+                    Crop.HIendCD = i + 1;
                     set4 = true;
                 }
             }
@@ -766,7 +766,7 @@ public class AOS_Initialize {
                 int FloweringEnd = 0;
                 for (int i = 0; i < GDDcum.length; i++) {
                     if (GDDcum[i] > Crop.FloweringEnd) {
-                        FloweringEnd = i;
+                        FloweringEnd = i + 1;
                         break;
                     }
                 }

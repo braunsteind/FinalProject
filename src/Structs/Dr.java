@@ -1,7 +1,6 @@
 package Structs;
 
 public class Dr {
-
-    public static double Zt;
-    public static double Rz;
+    public double Zt;
+    public double Rz;
 }

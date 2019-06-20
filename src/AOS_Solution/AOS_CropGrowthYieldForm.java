@@ -680,9 +680,9 @@ public class AOS_CropGrowthYieldForm {
             //[~,Dr,TAW,~] = Common.AOS_RootZoneWater(soil, crop, NewCond);           // Object []
             Object[] rootZoneWaterRetObj = Common.AOS_RootZoneWater(soil, crop, NewCond);
             //Check whether to use root zone or top soil depletions for calculating water stress
-            Dr DrTemp = (Dr) rootZoneWaterRetObj[1];
-            TAW TAWtemp = (TAW) rootZoneWaterRetObj[2];
-            if ((DrTemp.Rz / TAWtemp.Rz) <= (DrTemp.Zt / TAWtemp.Zt)) {
+            Dr Dr = (Dr) rootZoneWaterRetObj[1];
+            TAW TAW = (TAW) rootZoneWaterRetObj[2];
+            if ((Dr.Rz / TAW.Rz) <= (Dr.Zt / TAW.Zt)) {
                 //Root zone is wetter than top soil, so use root zone value
                 dr = Dr.Rz;
                 taw = TAW.Rz;

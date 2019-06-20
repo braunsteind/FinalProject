@@ -466,13 +466,116 @@ public class AOS_SoilWaterBalance {
         }
 
         //Initialise counters
-        int ii = 0;
-        double Runoff = 0;
+        int ii = 0, layeri, precomp;
+        double Runoff = 0, factor, theta0, A, drainmax, drainage, diff, excess;
 
         //Infiltrate incoming water
         double DeepPerc = 0;
         if (ToStore > 0) {
-            //TODO
+            while (ToStore > 0 && ii < Soil.nComp) {
+                //Update compartment counter
+                ii = ii + 1;
+                //Get soil layer
+                layeri = Soil.comp.layer[ii - 1];
+                //Calculate saturated drainage ability
+                double dthdtS = Soil.layer.tau[layeri - 1] * (Soil.layer.th_s[layeri - 1] - Soil.layer.th_fc[layeri - 1]);
+                //Calculate drainage factor
+                factor = Soil.layer.Ksat[layeri - 1] / (dthdtS * 1000 * Soil.comp.dz[ii - 1]);
+
+                //Calculate drainage ability required
+                double dthdt0 = ToStore / (1000.0 * Soil.comp.dz[ii - 1]);
+
+                //Check drainage ability
+                if (dthdt0 < dthdtS) {
+                    //Calculate water content, thX, needed to meet drainage dthdt0
+                    if (dthdt0 <= 0) {
+                        theta0 = InitCond.th_fc_Adj[ii - 1];
+                    } else {
+                        A = 1 + ((dthdt0 * (exp(Soil.layer.th_s[layeri - 1] - Soil.layer.th_fc[layeri - 1]) - 1)) /
+                                (Soil.layer.tau[layeri - 1] * (Soil.layer.th_s[layeri - 1] - Soil.layer.th_fc[layeri - 1])));
+                        theta0 = Soil.layer.th_fc[layeri - 1] + log(A);
+                    }
+                    //Limit thX to between saturation and field capacity
+                    if (theta0 > Soil.layer.th_s[layeri - 1]) {
+                        theta0 = Soil.layer.th_s[layeri - 1];
+                    } else if (theta0 <= InitCond.th_fc_Adj[ii - 1]) {
+                        theta0 = InitCond.th_fc_Adj[ii - 1];
+                        dthdt0 = 0;
+                    }
+                } else {
+                    //Limit water content and drainage to saturation
+                    theta0 = Soil.layer.th_s[layeri - 1];
+                    dthdt0 = dthdtS;
+                }
+
+                //Calculate maximum water flow through compartment ii
+                drainmax = factor * dthdt0 * 1000 * Soil.comp.dz[ii - 1];
+                //Calculate total drainage from compartment ii
+                drainage = drainmax + FluxOut[ii - 1];
+                //Limit drainage to saturated hydraulic conductivity
+                if (drainage > Soil.layer.Ksat[layeri - 1]) {
+                    drainmax = Soil.layer.Ksat[layeri - 1] - FluxOut[ii - 1];
+                }
+
+                //Calculate difference between threshold and current water contents
+                diff = theta0 - InitCond.th[ii - 1];
+
+                if (diff > 0) {
+                    //Increase water content of compartment ii
+                    thnew[ii - 1] = thnew[ii - 1] + (ToStore / (1000 * Soil.comp.dz[ii - 1]));
+                    if (thnew[ii - 1] > theta0) {
+                        //Water remaining that can infiltrate to compartments below
+                        ToStore = (thnew[ii - 1] - theta0) * 1000 * Soil.comp.dz[ii - 1];
+                        thnew[ii - 1] = theta0;
+                    } else {
+                        //All infiltrating water has been stored
+                        ToStore = 0;
+                    }
+                }
+                //Update outflow from current compartment (drainage + infiltration flows)
+                FluxOut[ii - 1] = FluxOut[ii - 1] + ToStore;
+
+                //Calculate back-up of water into compartments above
+                excess = ToStore - drainmax;
+                if (excess < 0) {
+                    excess = 0;
+                }
+
+                //Update water to store
+                ToStore = ToStore - excess;
+
+                //Redistribute excess to compartments above
+                if (excess > 0) {
+                    precomp = ii + 1;
+                    while (excess > 0 && precomp != 1) {
+                        //Keep storing in compartments above until soil surface is reached
+                        //Update compartment counter
+                        precomp = precomp - 1;
+                        //Update layer number
+                        layeri = Soil.comp.layer[precomp - 1];
+                        //Update outflow from compartment
+                        FluxOut[precomp - 1] = FluxOut[precomp - 1] - excess;
+                        //Update water content
+                        thnew[precomp - 1] = thnew[precomp - 1] + (excess / (Soil.comp.dz[precomp - 1] * 1000));
+                        //Limit water content to saturation
+                        if (thnew[precomp - 1] > Soil.layer.th_s[layeri - 1]) {
+                            //Update excess to store
+                            excess = (thnew[precomp - 1] - Soil.layer.th_s[layeri - 1]) * 1000 * Soil.comp.dz[precomp - 1];
+                            //Set water content to saturation
+                            thnew[precomp - 1] = Soil.layer.th_s[layeri - 1];
+                        } else {
+                            //All excess stored
+                            excess = 0;
+                        }
+                    }
+                    if (excess > 0) {
+                        //Any leftover water not stored becomes runoff
+                        Runoff = Runoff + excess;
+                    }
+                }
+            }
+            //Infiltration left to store after bottom compartment becomes deep percolation (mm)
+            DeepPerc = ToStore;
         } else {
             //No infiltration
             DeepPerc = 0;
