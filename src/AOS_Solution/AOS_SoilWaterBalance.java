@@ -87,7 +87,8 @@ public class AOS_SoilWaterBalance {
         double GwIn = (double) a[1];
 
         //Check root zone water content
-        double Wr = AOS_RootZoneWater(Soil, Crop, NewCond);
+        Object[] RZW_return = Common.AOS_RootZoneWater(Soil, Crop, NewCond);
+        Double Wr = (Double) RZW_return[0];
 
         SoilWatOutStruct SoilWatOut = new SoilWatOutStruct();
         //Store water balance outputs
@@ -1184,7 +1185,7 @@ public class AOS_SoilWaterBalance {
 
         return new Object[]{NewCond, GwIn};
     }
-
+    /*
     //Function to calculate actual and total available water in the root zone at current time step
     private static double AOS_RootZoneWater(Soil Soil, Crop Crop, InitCondStruct InitCond) {
         //Calculate root zone water content and available water
@@ -1302,5 +1303,5 @@ public class AOS_SoilWaterBalance {
         }
 
         return WrAct;
-    }
+    } */
 }
