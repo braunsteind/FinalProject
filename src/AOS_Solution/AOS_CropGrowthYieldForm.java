@@ -1043,7 +1043,7 @@ public class AOS_CropGrowthYieldForm {
                 //Define potential new root depth
                 double ZiTmp = InitCond.Zroot + dZr;
                 //Find compartment that root zone will expand in to
-                int compi = (int) find(soil.comp.dzsum, ZiTmp); //#########
+                int compi = (int) find(soil.comp.dzsum, Math.round(ZiTmp)); //#########
                 //Get TAW in compartment
                 int layeri = soil.comp.layer[compi - 1] - 1;
                 double TAWcompi = (soil.layer.th_fc[layeri] - soil.layer.th_wp[layeri]);

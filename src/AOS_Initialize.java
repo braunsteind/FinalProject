@@ -117,7 +117,7 @@ public class AOS_Initialize {
             write(path, new String[]{"Year,Month,Day,SimDay,Season,wRZ,zGW,wSurf,Irr,Infl,RO,DP,CR,GWin,Es,EsX,Tr,TrX"});
 
             //Crop growth (daily)
-            path = FileLoc.concat(fileLocation.outputFilename + "CropGrowth.csv");
+            path = FileLoc.concat(fileLocation.outputFilename + "_CropGrowth.csv");
             write(path, new String[]{"Year,Month,Day,SimDay,Season,GDD,TotGDD,Zr,CC,CCPot,Bio,BioPot,HI,HIadj,Yield"});
         }
 
@@ -1034,7 +1034,7 @@ public class AOS_Initialize {
         fileLocation.initialWCFilename = dataArray.get(6).split(",")[1];
         fileLocation.groundwaterFilename = dataArray.get(7).split(",")[1];
         fileLocation.CO2Filename = dataArray.get(8).split(",")[1];
-        fileLocation.outputFilename = dataArray.get(9).split(",")[1] + "\\";
+        fileLocation.outputFilename = dataArray.get(9).split(",")[1];
         fileLocation.writeDaily = dataArray.get(10).split(",")[1];
 
         return fileLocation;

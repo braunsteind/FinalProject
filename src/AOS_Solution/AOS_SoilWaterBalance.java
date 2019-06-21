@@ -433,7 +433,7 @@ public class AOS_SoilWaterBalance {
                                              double DeepPerc0, double Runoff0, boolean GrowingSeason) {
         //Store initial conditions in new structure for updating
         InitCondStruct NewCond = InitCond;
-        double[] thnew = NewCond.th;
+        double[] thnew = NewCond.th.clone();
 
         //Update infiltration rate for irrigation
         //Note: irrigation amount adjusted for specified application efficiency
@@ -447,11 +447,11 @@ public class AOS_SoilWaterBalance {
             //TODO
         } else if (FieldMngt.Bunds.compareTo("N") == 0) {
             //No bunds on field
-            if (Infl > Soil.layer.Ksat[1]) {
+            if (Infl > Soil.layer.Ksat[0]) {
                 //Infiltration limited by saturated hydraulic conductivity of top soil layer
-                ToStore = Soil.layer.Ksat[1];
+                ToStore = Soil.layer.Ksat[0];
                 //Additional water runs off
-                RunoffIni = Infl - Soil.layer.Ksat[1];
+                RunoffIni = Infl - Soil.layer.Ksat[0];
             } else {
                 //All water infiltrates
                 ToStore = Infl;
@@ -605,7 +605,7 @@ public class AOS_SoilWaterBalance {
             }
         }
         //Store updated water contents
-        NewCond.th = thnew;
+        NewCond.th = thnew.clone();
 
         //Update deep percolation, surface runoff, and infiltration values
         DeepPerc = DeepPerc + DeepPerc0;
